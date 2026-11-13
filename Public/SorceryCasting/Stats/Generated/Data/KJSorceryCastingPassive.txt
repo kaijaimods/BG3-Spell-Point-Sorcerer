@@ -5,7 +5,7 @@ data "DisplayName" "c13e6e6b-7429-4ae4-b510-ca38884f7ab1;1"
 data "Description" "35f95e84-3d7b-46f8-bf6f-22a4a3d9adf1;1"
 data "Icon" "statIcons_WildMagic_SorceryPoints"
 data "Properties" "IsToggled;ToggledDefaultAddToHotbar;ToggledDefaultOn;MetaMagic"
-data "Boosts" "IF(not CharacterLevelGreaterThan(4)):UnlockSpellVariant(KJCanSorceryCast(), ModifyUseCosts(Add,SorceryPoint,SpellPowerLevel,0), ModifyUseCosts(Add,SorceryPoint,1,0), ModifyUseCosts(Replace,SpellSlotsGroup,0,-1,SpellSlotsGroup));IF(CharacterLevelGreaterThan(4)):UnlockSpellVariant(KJCanSorceryCast(), ModifyUseCosts(Add,SorceryPoint,SpellPowerLevel,0), ModifyUseCosts(Add,SorceryPoint,2,0), ModifyUseCosts(Replace,SpellSlotsGroup,0,-1,SpellSlotsGroup))"
+data "Boosts" "UnlockSpellVariant(KJCanSorceryCast() & KJSorceryCastLow(), ModifyUseCosts(Add,SorceryPoint,SpellPowerLevel,0), ModifyUseCosts(Add,SorceryPoint,1,0), ModifyUseCosts(Replace,SpellSlotsGroup,0,-1,SpellSlotsGroup));IF(~CharacterLevelGreaterThan(4)):UnlockSpellVariant(KJCanSorceryCast() & ~KJSorceryCastLow(), ModifyUseCosts(Add,SorceryPoint,SpellPowerLevel,0), ModifyUseCosts(Add,SorceryPoint,1,0), ModifyUseCosts(Replace,SpellSlotsGroup,0,-1,SpellSlotsGroup));IF(CharacterLevelGreaterThan(4)):UnlockSpellVariant(KJCanSorceryCast() & ~KJSorceryCastLow(), ModifyUseCosts(Add,SorceryPoint,SpellPowerLevel,0), ModifyUseCosts(Add,SorceryPoint,2,0), ModifyUseCosts(Replace,SpellSlotsGroup,0,-1,SpellSlotsGroup))"
 
 new entry "KJ_SorceryCasting_Level_1"
 type "PassiveData"
