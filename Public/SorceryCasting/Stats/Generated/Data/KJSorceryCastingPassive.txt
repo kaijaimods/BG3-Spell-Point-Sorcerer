@@ -68,7 +68,7 @@ type "PassiveData"
 data "Properties" "IsHidden;OncePerLongRest"
 data "Boosts" "ActionResource(SorceryPoint,13,0)"
 data "StatsFunctorContext" "OnActionResourcesChanged"
-data "StatsFunctors" "RestoreResource(SpellSlot,-1,5);RestoreResource(SpellSlot,-1,5)"
+data "StatsFunctors" "RestoreResource(SpellSlot,-1,4);RestoreResource(SpellSlot,-1,5)"
 
 new entry "KJ_SorceryCasting_Level_10"
 type "PassiveData"
