@@ -1,3 +1,28 @@
+new entry "KJ_SorceryCasting_Interrupt_AbsorbElements"
+type "InterruptData"
+using "Interrupt_AbsorbElements"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:2"
+
+new entry "KJ_SorceryCasting_Interrupt_AbsorbElements_2"
+type "InterruptData"
+using "Interrupt_AbsorbElements"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:3"
+
+new entry "KJ_SorceryCasting_Interrupt_AbsorbElements_3"
+type "InterruptData"
+using "Interrupt_AbsorbElements"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:5"
+
+new entry "KJ_SorceryCasting_Interrupt_AbsorbElements_4"
+type "InterruptData"
+using "Interrupt_AbsorbElements"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:6"
+
+new entry "KJ_SorceryCasting_Interrupt_AbsorbElements_5"
+type "InterruptData"
+using "Interrupt_AbsorbElements"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:7"
+
 new entry "KJ_SorceryCasting_Interrupt_Counterspell"
 type "InterruptData"
 using "Interrupt_Counterspell"
@@ -12,6 +37,11 @@ new entry "KJ_SorceryCasting_Interrupt_Counterspell_5"
 type "InterruptData"
 using "Interrupt_Counterspell_5"
 data "Cost" "ReactionActionPoint:1;SorceryPoint:7"
+
+new entry "KJ_SorceryCasting_Interrupt_MentalBarrier"
+type "InterruptData"
+using "KJ_Interrupt_MentalBarrier"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:3"
 
 new entry "KJ_SorceryCasting_Interrupt_Shield"
 type "InterruptData"
