@@ -1,0 +1,21 @@
+new entry "KJ_SorceryCasting_Interrupt_Shield"
+type "InterruptData"
+using "Interrupt_Shield_Sorcerer"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:1"
+
+new entry "KJ_SorceryCasting_Interrupt_Counterspell"
+type "InterruptData"
+using "Interrupt_Counterspell"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:3"
+
+new entry "KJ_SorceryCasting_Interrupt_Counterspell_4"
+type "InterruptData"
+using "Interrupt_Counterspell"
+data "Roll" "TryCounterspellHigherLevel(4)"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:4"
+
+new entry "KJ_SorceryCasting_Interrupt_Counterspell_5"
+type "InterruptData"
+using "Interrupt_Counterspell"
+data "Roll" "TryCounterspellHigherLevel(5)"
+data "Cost" "ReactionActionPoint:1;SorceryPoint:5"
