@@ -368,13 +368,19 @@ if Ext.IsServer() then
             syncChannel:Broadcast(Ext.Json.Stringify(payload))
         end
 
+        if Osi.HasActiveStatus(uuid, "KJ_SORCERYCASTING_ACTIVE") == 1 then
+            RemoveAllCharPassives(uuid)
+            Ext.Timer.WaitFor(100, function()
+                ApplyCharacterPassives(uuid)
+            end)
+        end
+
         _P("[SorceryCasting] Updated Sorcerer spell pool for character: " .. tostring(uuid))
     end
 
     local function RebuildAllPartySorcerers()
         local childrenMap = GetSpellChildrenMap()
         local sorcSources = GetSorcererProgressionSources()
-        local teamRows = Osi.DB_PartOfTheTeam:Get(nil) or {}
         local payload = {}
 
         CharacterSlotMap = {}
@@ -384,14 +390,28 @@ if Ext.IsServer() then
             ClearCharSlotPassives(charIdx, payload)
         end
 
+        local seenUuids = {}
+        local allCandidateRows = {}
+
+        for _, row in ipairs(Osi.DB_PartOfTheTeam:Get(nil) or {}) do
+            table.insert(allCandidateRows, row)
+        end
+        for _, row in ipairs(Osi.DB_InCamp:Get(nil) or {}) do
+            table.insert(allCandidateRows, row)
+        end
+
         local count = 0
-        for _, row in ipairs(teamRows) do
-            local uuid = NormalizeUuid(row[1])
-            local entity = uuid ~= nil and Ext.Entity.Get(uuid) or nil
-            if entity ~= nil then
-                CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload)
-                if CharacterSlotMap[uuid] ~= nil then
-                    count = count + 1
+        for _, row in ipairs(allCandidateRows) do
+            local rawGuid = table.unpack(row)
+            local uuid = NormalizeUuid(rawGuid)
+            if uuid ~= nil and not seenUuids[uuid] then
+                seenUuids[uuid] = true
+                local entity = Ext.Entity.Get(uuid)
+                if entity ~= nil then
+                    CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload)
+                    if CharacterSlotMap[uuid] ~= nil then
+                        count = count + 1
+                    end
                 end
             end
         end
