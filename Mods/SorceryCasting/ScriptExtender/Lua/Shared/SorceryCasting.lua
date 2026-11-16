@@ -1,5 +1,5 @@
 local SORCERER_CLASS_UUID = "784001e2-c96d-4153-beb6-2adbef5abc92"
-local MAX_CHAR_SLOTS = 4
+local MAX_CHAR_SLOTS = 8
 local SLOTS_PER_LEVEL = 2
 
 local syncChannel = Ext.Net.CreateChannel(ModuleUUID, "SorceryCasting_SyncCharPools")

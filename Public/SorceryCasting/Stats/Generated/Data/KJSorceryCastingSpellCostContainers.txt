@@ -157,3 +157,163 @@ data "Properties" "IsHidden"
 new entry "KJ_SorceryCasting_Char4_Level5_2"
 type "PassiveData"
 data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level1_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level1_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level2_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level2_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level3_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level3_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level4_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level4_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level5_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char5_Level5_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level1_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level1_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level2_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level2_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level3_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level3_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level4_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level4_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level5_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char6_Level5_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level1_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level1_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level2_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level2_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level3_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level3_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level4_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level4_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level5_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char7_Level5_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level1_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level1_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level2_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level2_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level3_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level3_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level4_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level4_2"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level5_1"
+type "PassiveData"
+data "Properties" "IsHidden"
+
+new entry "KJ_SorceryCasting_Char8_Level5_2"
+type "PassiveData"
+data "Properties" "IsHidden"
