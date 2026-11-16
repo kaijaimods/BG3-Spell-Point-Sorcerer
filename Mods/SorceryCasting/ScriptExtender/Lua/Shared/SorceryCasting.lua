@@ -1,13 +1,8 @@
 local SORCERER_CLASS_UUID = "784001e2-c96d-4153-beb6-2adbef5abc92"
-local MAX_SLOTS_PER_LEVEL = 10
+local MAX_CHAR_SLOTS = 4
+local SLOTS_PER_LEVEL = 2
 
-local SORCERER_SPELL_LISTS = {
-    ["92c4751f-6255-4f67-822c-a75d53830b27"] = true, -- Sorcerer Level 1
-    ["f80396e2-cb76-4694-b0db-5c34da61a478"] = true, -- Sorcerer Level 2
-    ["dcbaf2ae-1f45-453e-ab83-cd154f8277a4"] = true, -- Sorcerer Level 3
-    ["5fe40622-1d3e-4cc1-8d89-e66fe51d8c5c"] = true, -- Sorcerer Level 4
-    ["3276fcfe-e143-4559-b6e0-7d7aa0ffcb53"] = true, -- Sorcerer Level 5
-}
+local syncChannel = Ext.Net.CreateChannel(ModuleUUID, "SorceryCasting_SyncCharPools")
 
 local SORCERY_POINT_COSTS = {
     2, -- Level 1
@@ -17,191 +12,112 @@ local SORCERY_POINT_COSTS = {
     7, -- Level 5
 }
 
-local function GetSlotPassiveName(level, slotIndex)
-    return string.format("KJ_SorceryCasting_SpellCosts_Level%d_%d", level, slotIndex)
+local SORCERER_BUNDLE_PASSIVES = {
+    "KJ_SorceryCasting_Passive",
+    "KJ_SorceryCasting_Points",
+    "KJ_SorceryCasting_Level_1",
+    "KJ_SorceryCasting_Level_2",
+    "KJ_SorceryCasting_Level_3",
+    "KJ_SorceryCasting_Level_4",
+    "KJ_SorceryCasting_Level_5",
+    "KJ_SorceryCasting_Level_6",
+    "KJ_SorceryCasting_Level_7",
+    "KJ_SorceryCasting_Level_8",
+    "KJ_SorceryCasting_Level_9",
+    "KJ_SorceryCasting_Level_10",
+}
+
+local function GetCharPassiveName(charIndex, level, slotIndex)
+    return string.format("KJ_SorceryCasting_Char%d_Level%d_%d", charIndex, level, slotIndex)
 end
 
-local function BuildSpellChildrenMap()
-    local map = {}
-    local allSpells = Ext.Stats.GetStats("SpellData") or {}
-
-    for _, spellName in ipairs(allSpells) do
-        local stat = Ext.Stats.Get(spellName)
-        if stat ~= nil and stat.Using ~= nil and stat.Using ~= "" then
-            map[stat.Using] = map[stat.Using] or {}
-            table.insert(map[stat.Using], spellName)
-        end
-    end
-
-    return map
-end
-
-local function CollectSpellFamily(rootSpell, childrenMap, collected)
-    if collected[rootSpell] then
-        return
-    end
-    collected[rootSpell] = true
-
-    local children = childrenMap[rootSpell]
-    if children ~= nil then
-        for _, childName in ipairs(children) do
-            CollectSpellFamily(childName, childrenMap, collected)
-        end
-    end
-end
-
-local function GetAllSorcererProgressionSpells(childrenMap)
-    local expandedSpells = {}
-    local sorcClassGuids = { [SORCERER_CLASS_UUID] = true }
-    local sorcTableGuids = {}
-
-    local allClasses = Ext.StaticData.GetAll("ClassDescription") or {}
-    for _, classUuid in ipairs(allClasses) do
-        local classDesc = Ext.StaticData.Get(classUuid, "ClassDescription")
-        if classDesc ~= nil then
-            if classUuid == SORCERER_CLASS_UUID or classDesc.ParentGuid == SORCERER_CLASS_UUID then
-                sorcClassGuids[classUuid] = true
-                if classDesc.ProgressionTableUUID ~= nil then
-                    sorcTableGuids[classDesc.ProgressionTableUUID] = true
-                end
-            end
-        end
-    end
-
-    local validSpellLists = {}
-    for uuid, _ in pairs(SORCERER_SPELL_LISTS) do
-        validSpellLists[uuid] = true
-    end
-
-    local allProgressions = Ext.StaticData.GetAll("Progression") or {}
-    for _, progUuid in ipairs(allProgressions) do
-        local prog = Ext.StaticData.Get(progUuid, "Progression")
-        if prog ~= nil and prog.TableUUID ~= nil then
-            local isSorcProg = sorcTableGuids[prog.TableUUID] or sorcClassGuids[prog.TableUUID]
-            if not isSorcProg and prog.Name ~= nil then
-                isSorcProg = string.find(string.lower(prog.Name), "sorcerer") ~= nil
-            end
-
-            if isSorcProg then
-                if prog.SelectSpells ~= nil then
-                    for _, entry in ipairs(prog.SelectSpells) do
-                        if entry.SpellUUID ~= nil then
-                            validSpellLists[entry.SpellUUID] = true
-                        end
-                    end
-                end
-                if prog.AddSpells ~= nil then
-                    for _, entry in ipairs(prog.AddSpells) do
-                        if entry.SpellUUID ~= nil then
-                            validSpellLists[entry.SpellUUID] = true
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    local allLists = Ext.StaticData.GetAll("SpellList") or {}
-    for _, listUuid in ipairs(allLists) do
-        local spellList = Ext.StaticData.Get(listUuid, "SpellList")
-        if spellList ~= nil then
-            local isSorcList = validSpellLists[listUuid]
-                or (spellList.Name ~= nil and string.find(string.lower(spellList.Name), "sorcerer") ~= nil)
-
-            if isSorcList and spellList.Spells ~= nil then
-                for k, v in pairs(spellList.Spells) do
-                    local spellName = type(k) == "string" and k or v
-                    if type(spellName) == "string" then
-                        CollectSpellFamily(spellName, childrenMap, expandedSpells)
-
-                        for _, suffix in ipairs({ "_Sorcerer", "_Class" }) do
-                            local variant = spellName .. suffix
-                            if Ext.Stats.Get(variant) ~= nil then
-                                CollectSpellFamily(variant, childrenMap, expandedSpells)
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-
-    return expandedSpells
-end
-
-local function PopulatePoolAtStartup()
-    local childrenMap = BuildSpellChildrenMap()
-    local expandedSpells = GetAllSorcererProgressionSpells(childrenMap)
-    local spellsByLevel = { {}, {}, {}, {}, {} }
-
-    for spellName, _ in pairs(expandedSpells) do
-        local stat = Ext.Stats.Get(spellName)
-        if stat ~= nil then
-            local useCosts = stat.UseCosts or ""
-            local slotLevelStr = string.match(useCosts, "SpellSlotsGroup:%d+:%d+:(%d+)")
-            local slotLevel = tonumber(slotLevelStr) or stat.Level
-
-            if slotLevel ~= nil and slotLevel >= 1 and slotLevel <= 5 and string.find(useCosts, "SpellSlotsGroup") then
-                table.insert(spellsByLevel[slotLevel], string.format("SpellId('%s')", spellName))
-            end
-        end
-    end
-
-    local activeCount = 0
-    local totalSpells = 0
-
-    for level = 1, 5 do
-        for slot = 1, MAX_SLOTS_PER_LEVEL do
-            local pStat = Ext.Stats.Get(GetSlotPassiveName(level, slot))
+if Ext.IsClient() then
+    syncChannel:SetHandler(function(data)
+        local updates = Ext.Json.Parse(data)
+        for passiveName, boosts in pairs(updates) do
+            local pStat = Ext.Stats.Get(passiveName)
             if pStat ~= nil then
-                pStat.Boosts = ""
-            end
-        end
-
-        local spCost = SORCERY_POINT_COSTS[level]
-        local spellPredicates = spellsByLevel[level]
-        local slotIndex = 1
-        local currentExpr = ""
-
-        local function FlushChunk(expr)
-            if expr == "" then return end
-            local pName = GetSlotPassiveName(level, slotIndex)
-            local pStat = Ext.Stats.Get(pName)
-            if pStat ~= nil then
-                pStat.Boosts = string.format(
-                    "UnlockSpellVariant((%s) & KJCanSorceryCast(),ModifyUseCosts(Add,SorceryPoint,%d,0),ModifyUseCosts(Replace,SpellSlotsGroup,0,-1,SpellSlotsGroup))",
-                    expr,
-                    spCost
-                )
+                pStat.Boosts = boosts
                 pStat:Sync()
-                activeCount = activeCount + 1
-            else
-                _P("[SorceryCasting] WARNING: Pool exhausted at " .. pName)
-            end
-            slotIndex = slotIndex + 1
-        end
-
-        for _, pred in ipairs(spellPredicates) do
-            local candidate = currentExpr == "" and pred or (currentExpr .. "|" .. pred)
-            if #candidate > 1600 then
-                FlushChunk(currentExpr)
-                currentExpr = pred
-            else
-                currentExpr = candidate
             end
         end
-
-        FlushChunk(currentExpr)
-        totalSpells = totalSpells + #spellPredicates
-    end
-
-    _P("[SorceryCasting] Startup compiled " .. tostring(totalSpells) .. " Sorcerer/subclass spells (Levels 1-5) into " .. tostring(activeCount) .. " grouped passives.")
+    end)
 end
-
-PopulatePoolAtStartup()
-Ext.Events.StatsLoaded:Subscribe(PopulatePoolAtStartup)
 
 if Ext.IsServer() then
+    local CachedChildrenMap = nil
+    local CharacterSlotMap = {}
+    local CharacterActivePassives = {}
+
+    local function NormalizeUuid(guid)
+        if guid ~= nil and math.floor(#guid / 36) ~= 0 then
+            return string.sub(guid, -36)
+        end
+        return guid
+    end
+
+    local function IsNpcOrIgnoredSpell(spellName)
+        if string.find(spellName, "CreateSorceryPoints") or string.find(spellName, "CreateSpellSlot") then
+            return true
+        end
+        if string.find(spellName, "^AI_") or string.find(spellName, "^Quest_") or string.find(spellName, "^DEBUG_") then
+            return true
+        end
+        if string.find(spellName, "_LOW_") or string.find(spellName, "_END_") or string.find(spellName, "_TUT_")
+            or string.find(spellName, "_UND_") or string.find(spellName, "_SCL_") or string.find(spellName, "_HAG_")
+            or string.find(spellName, "_GOB_") or string.find(spellName, "_CRE_") or string.find(spellName, "_SHA_") then
+            return true
+        end
+        return false
+    end
+
+    local function HasIsSpellFlag(stat)
+        if stat == nil or stat.SpellFlags == nil then
+            return false
+        end
+        for _, flag in ipairs(stat.SpellFlags) do
+            if flag == "IsSpell" then
+                return true
+            end
+        end
+        return false
+    end
+
+    local function GetSpellChildrenMap()
+        if CachedChildrenMap ~= nil then
+            return CachedChildrenMap
+        end
+
+        CachedChildrenMap = {}
+        local allSpells = Ext.Stats.GetStats("SpellData") or {}
+
+        for _, spellName in ipairs(allSpells) do
+            if not IsNpcOrIgnoredSpell(spellName) then
+                local stat = Ext.Stats.Get(spellName)
+                if stat ~= nil and stat.Using ~= nil and stat.Using ~= "" then
+                    CachedChildrenMap[stat.Using] = CachedChildrenMap[stat.Using] or {}
+                    table.insert(CachedChildrenMap[stat.Using], spellName)
+                end
+            end
+        end
+
+        return CachedChildrenMap
+    end
+
+    local function CollectSpellFamily(rootSpell, childrenMap, collected)
+        if collected[rootSpell] or IsNpcOrIgnoredSpell(rootSpell) then
+            return
+        end
+        collected[rootSpell] = true
+
+        local children = childrenMap[rootSpell]
+        if children ~= nil then
+            for _, childName in ipairs(children) do
+                CollectSpellFamily(childName, childrenMap, collected)
+            end
+        end
+    end
+
     local function HasSorcererLevels(entity)
         if entity == nil or entity.Classes == nil or entity.Classes.Classes == nil then
             return false
@@ -214,31 +130,204 @@ if Ext.IsServer() then
         return false
     end
 
-    local function SyncAllPartySorcerers()
-        local partyEntities = Ext.Entity.GetAllEntitiesWithComponent("PartyMember")
-        for _, entity in ipairs(partyEntities) do
-            local uuid = entity.Uuid and entity.Uuid.EntityUuid
-            if uuid ~= nil and HasSorcererLevels(entity) then
-                if Osi.HasPassive(uuid, "KJ_SorceryCasting_Passive") == 0 then
-                    Osi.AddPassive(uuid, "KJ_SorceryCasting_Passive")
+    local function GrantSorcererBundle(uuid)
+        for _, passiveName in ipairs(SORCERER_BUNDLE_PASSIVES) do
+            if Osi.HasPassive(uuid, passiveName) == 0 then
+                Osi.AddPassive(uuid, passiveName)
+            end
+        end
+    end
+
+    local function RemoveSorcererBundle(uuid)
+        for _, passiveName in ipairs(SORCERER_BUNDLE_PASSIVES) do
+            if Osi.HasPassive(uuid, passiveName) == 1 then
+                Osi.RemovePassive(uuid, passiveName)
+            end
+        end
+    end
+
+    local function RemoveAllCharPassives(uuid)
+        for charIdx = 1, MAX_CHAR_SLOTS do
+            for level = 1, 5 do
+                for slot = 1, SLOTS_PER_LEVEL do
+                    local pName = GetCharPassiveName(charIdx, level, slot)
+                    if Osi.HasPassive(uuid, pName) == 1 then
+                        Osi.RemovePassive(uuid, pName)
+                    end
                 end
             end
         end
     end
 
+    local function ApplyCharacterPassives(uuid)
+        local cleanUuid = NormalizeUuid(uuid)
+        local passives = CharacterActivePassives[cleanUuid] or {}
+        for _, pName in ipairs(passives) do
+            if Osi.HasPassive(cleanUuid, pName) == 0 then
+                Osi.AddPassive(cleanUuid, pName)
+            end
+        end
+    end
+
+    local function RebuildAndSyncAllPartySorcerers()
+        local childrenMap = GetSpellChildrenMap()
+        local partyEntities = Ext.Entity.GetAllEntitiesWithComponent("PartyMember") or {}
+        local payload = {}
+        local nextCharSlot = 1
+
+        for charIdx = 1, MAX_CHAR_SLOTS do
+            for level = 1, 5 do
+                for slot = 1, SLOTS_PER_LEVEL do
+                    local pName = GetCharPassiveName(charIdx, level, slot)
+                    local pStat = Ext.Stats.Get(pName)
+                    if pStat ~= nil then
+                        pStat.Boosts = ""
+                        payload[pName] = ""
+                    end
+                end
+            end
+        end
+
+        CharacterSlotMap = {}
+        CharacterActivePassives = {}
+
+        for _, entity in ipairs(partyEntities) do
+            local rawUuid = entity.Uuid and entity.Uuid.EntityUuid
+            local uuid = NormalizeUuid(rawUuid)
+            if uuid ~= nil then
+                RemoveAllCharPassives(uuid)
+
+                if HasSorcererLevels(entity) and nextCharSlot ~= MAX_CHAR_SLOTS + 1 then
+                    local charIdx = nextCharSlot
+                    nextCharSlot = nextCharSlot + 1
+                    CharacterSlotMap[uuid] = charIdx
+                    CharacterActivePassives[uuid] = {}
+
+                    GrantSorcererBundle(uuid)
+
+                    local learnedSpells = {}
+                    if entity.SpellBook ~= nil and entity.SpellBook.Spells ~= nil then
+                        for _, spellEntry in ipairs(entity.SpellBook.Spells) do
+                            local id = spellEntry.Id
+                            if id ~= nil and id.Prototype ~= nil and id.ProgressionSource == SORCERER_CLASS_UUID then
+                                CollectSpellFamily(id.Prototype, childrenMap, learnedSpells)
+                            end
+                        end
+                    end
+
+                    local spellsByLevel = { {}, {}, {}, {}, {} }
+                    for spellName, _ in pairs(learnedSpells) do
+                        if not IsNpcOrIgnoredSpell(spellName) then
+                            local stat = Ext.Stats.Get(spellName)
+                            if stat ~= nil and HasIsSpellFlag(stat) then
+                                local useCosts = stat.UseCosts or ""
+                                local slotLevelStr = string.match(useCosts, "SpellSlotsGroup:%d+:%d+:(%d+)")
+                                local slotLevel = tonumber(slotLevelStr) or stat.Level
+
+                                if slotLevel ~= nil and SORCERY_POINT_COSTS[slotLevel] ~= nil and string.find(useCosts, "SpellSlotsGroup") then
+                                    table.insert(spellsByLevel[slotLevel], string.format("SpellId('%s')", spellName))
+                                end
+                            end
+                        end
+                    end
+
+                    for level = 1, 5 do
+                        local spCost = SORCERY_POINT_COSTS[level]
+                        local predicates = spellsByLevel[level]
+                        local slotIndex = 1
+                        local currentExpr = ""
+
+                        local function FlushChunk(expr)
+                            if expr == "" or slotIndex == SLOTS_PER_LEVEL + 1 then
+                                return
+                            end
+                            local pName = GetCharPassiveName(charIdx, level, slotIndex)
+                            local pStat = Ext.Stats.Get(pName)
+                            if pStat ~= nil then
+                                local boostStr = string.format(
+                                    "UnlockSpellVariant((%s) & KJCanSorceryCast(),ModifyUseCosts(Add,SorceryPoint,%d,0),ModifyUseCosts(Replace,SpellSlotsGroup,0,-1,SpellSlotsGroup))",
+                                    expr,
+                                    spCost
+                                )
+                                pStat.Boosts = boostStr
+                                pStat:Sync()
+                                payload[pName] = boostStr
+                                table.insert(CharacterActivePassives[uuid], pName)
+                            end
+                            slotIndex = slotIndex + 1
+                        end
+
+                        for _, pred in ipairs(predicates) do
+                            local candidate = currentExpr == "" and pred or (currentExpr .. "|" .. pred)
+                            if math.floor(#candidate / 1600) ~= 0 then
+                                FlushChunk(currentExpr)
+                                currentExpr = pred
+                            else
+                                currentExpr = candidate
+                            end
+                        end
+
+                        FlushChunk(currentExpr)
+                    end
+                else
+                    RemoveSorcererBundle(uuid)
+                end
+            end
+        end
+
+        syncChannel:Broadcast(Ext.Json.Stringify(payload))
+
+        for uuid, _ in pairs(CharacterSlotMap) do
+            if Osi.HasActiveStatus(uuid, "KJ_SORCERYCASTING_ACTIVE") == 1 then
+                ApplyCharacterPassives(uuid)
+            end
+        end
+
+        _P("[SorceryCasting] Rebuilt isolated Sorcerer spell pools for " .. tostring(nextCharSlot - 1) .. " party character(s).")
+    end
+
     Ext.Events.GameStateChanged:Subscribe(function(e)
         if e.ToState == "Running" then
-            SyncAllPartySorcerers()
+            RebuildAndSyncAllPartySorcerers()
         end
     end)
 
     Ext.Events.SessionLoaded:Subscribe(function()
-        Ext.Osiris.RegisterListener("LeveledUp", 1, "after", function(character)
-            SyncAllPartySorcerers()
+        local function DelayedRebuild()
+            Ext.Timer.WaitFor(500, function()
+                RebuildAndSyncAllPartySorcerers()
+            end)
+        end
+
+        Ext.Osiris.RegisterListener("StatusApplied", 4, "after", function(object, status, causee, storyActionID)
+            if status == "KJ_SORCERYCASTING_ACTIVE" then
+                ApplyCharacterPassives(object)
+            end
         end)
 
-        Ext.Osiris.RegisterListener("CharacterJoinedParty", 1, "after", function(character)
-            SyncAllPartySorcerers()
+        Ext.Osiris.RegisterListener("StatusRemoved", 4, "after", function(object, status, causee, applyStoryActionID)
+            if status == "KJ_SORCERYCASTING_ACTIVE" then
+                local uuid = NormalizeUuid(object)
+                if uuid ~= nil then
+                    RemoveAllCharPassives(uuid)
+                end
+            end
+        end)
+
+        Ext.Osiris.RegisterListener("LeveledUp", 1, "after", function()
+            DelayedRebuild()
+        end)
+
+        Ext.Osiris.RegisterListener("CharacterJoinedParty", 1, "after", function()
+            DelayedRebuild()
+        end)
+
+        Ext.Osiris.RegisterListener("CharacterLeftParty", 1, "after", function()
+            DelayedRebuild()
+        end)
+
+        Ext.Osiris.RegisterListener("UserConnected", 3, "after", function()
+            DelayedRebuild()
         end)
     end)
 end

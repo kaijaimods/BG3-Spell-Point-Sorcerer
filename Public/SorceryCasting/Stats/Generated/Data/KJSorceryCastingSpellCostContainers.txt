@@ -1,199 +1,159 @@
-new entry "KJ_SorceryCasting_SpellCosts_Level1_1"
+new entry "KJ_SorceryCasting_Char1_Level1_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level1_2"
+new entry "KJ_SorceryCasting_Char1_Level1_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level1_3"
+new entry "KJ_SorceryCasting_Char1_Level2_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level1_4"
+new entry "KJ_SorceryCasting_Char1_Level2_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level1_5"
+new entry "KJ_SorceryCasting_Char1_Level3_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level1_6"
+new entry "KJ_SorceryCasting_Char1_Level3_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level1_7"
+new entry "KJ_SorceryCasting_Char1_Level4_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level1_8"
+new entry "KJ_SorceryCasting_Char1_Level4_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level1_9"
+new entry "KJ_SorceryCasting_Char1_Level5_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level1_10"
+new entry "KJ_SorceryCasting_Char1_Level5_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_1"
+new entry "KJ_SorceryCasting_Char2_Level1_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_2"
+new entry "KJ_SorceryCasting_Char2_Level1_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_3"
+new entry "KJ_SorceryCasting_Char2_Level2_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_4"
+new entry "KJ_SorceryCasting_Char2_Level2_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_5"
+new entry "KJ_SorceryCasting_Char2_Level3_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_6"
+new entry "KJ_SorceryCasting_Char2_Level3_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_7"
+new entry "KJ_SorceryCasting_Char2_Level4_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_8"
+new entry "KJ_SorceryCasting_Char2_Level4_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_9"
+new entry "KJ_SorceryCasting_Char2_Level5_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level2_10"
+new entry "KJ_SorceryCasting_Char2_Level5_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_1"
+new entry "KJ_SorceryCasting_Char3_Level1_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_2"
+new entry "KJ_SorceryCasting_Char3_Level1_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_3"
+new entry "KJ_SorceryCasting_Char3_Level2_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_4"
+new entry "KJ_SorceryCasting_Char3_Level2_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_5"
+new entry "KJ_SorceryCasting_Char3_Level3_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_6"
+new entry "KJ_SorceryCasting_Char3_Level3_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_7"
+new entry "KJ_SorceryCasting_Char3_Level4_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_8"
+new entry "KJ_SorceryCasting_Char3_Level4_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_9"
+new entry "KJ_SorceryCasting_Char3_Level5_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level3_10"
+new entry "KJ_SorceryCasting_Char3_Level5_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_1"
+new entry "KJ_SorceryCasting_Char4_Level1_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_2"
+new entry "KJ_SorceryCasting_Char4_Level1_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_3"
+new entry "KJ_SorceryCasting_Char4_Level2_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_4"
+new entry "KJ_SorceryCasting_Char4_Level2_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_5"
+new entry "KJ_SorceryCasting_Char4_Level3_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_6"
+new entry "KJ_SorceryCasting_Char4_Level3_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_7"
+new entry "KJ_SorceryCasting_Char4_Level4_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_8"
+new entry "KJ_SorceryCasting_Char4_Level4_2"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_9"
+new entry "KJ_SorceryCasting_Char4_Level5_1"
 type "PassiveData"
 data "Properties" "IsHidden"
 
-new entry "KJ_SorceryCasting_SpellCosts_Level4_10"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_1"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_2"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_3"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_4"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_5"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_6"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_7"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_8"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_9"
-type "PassiveData"
-data "Properties" "IsHidden"
-
-new entry "KJ_SorceryCasting_SpellCosts_Level5_10"
+new entry "KJ_SorceryCasting_Char4_Level5_2"
 type "PassiveData"
 data "Properties" "IsHidden"

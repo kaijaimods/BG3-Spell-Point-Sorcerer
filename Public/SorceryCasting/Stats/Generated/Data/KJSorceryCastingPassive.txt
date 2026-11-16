@@ -1,6 +1,5 @@
 new entry "KJ_SorceryCasting_Passive"
 type "PassiveData"
-using "Sorcery Point Casting"
 data "DisplayName" "c13e6e6b-7429-4ae4-b510-ca38884f7ab1;1"
 data "Description" "35f95e84-3d7b-46f8-bf6f-22a4a3d9adf1;1"
 data "Icon" "statIcons_WildMagic_SorceryPoints"
@@ -15,13 +14,11 @@ data "DisplayName" "c13e6e6b-7429-4ae4-b510-ca38884f7ab1;1"
 data "Description" "35f95e84-3d7b-46f8-bf6f-22a4a3d9adf1;1"
 data "Icon" "statIcons_WildMagic_SorceryPoints"
 data "StackId" "KJ_SORCERYCASTING_ACTIVE"
-data "Passives" "KJ_SorceryCasting_SpellCosts_Level1_1;KJ_SorceryCasting_SpellCosts_Level1_2;KJ_SorceryCasting_SpellCosts_Level1_3;KJ_SorceryCasting_SpellCosts_Level1_4;KJ_SorceryCasting_SpellCosts_Level1_5;KJ_SorceryCasting_SpellCosts_Level1_6;KJ_SorceryCasting_SpellCosts_Level1_7;KJ_SorceryCasting_SpellCosts_Level1_8;KJ_SorceryCasting_SpellCosts_Level1_9;KJ_SorceryCasting_SpellCosts_Level1_10;KJ_SorceryCasting_SpellCosts_Level2_1;KJ_SorceryCasting_SpellCosts_Level2_2;KJ_SorceryCasting_SpellCosts_Level2_3;KJ_SorceryCasting_SpellCosts_Level2_4;KJ_SorceryCasting_SpellCosts_Level2_5;KJ_SorceryCasting_SpellCosts_Level2_6;KJ_SorceryCasting_SpellCosts_Level2_7;KJ_SorceryCasting_SpellCosts_Level2_8;KJ_SorceryCasting_SpellCosts_Level2_9;KJ_SorceryCasting_SpellCosts_Level2_10;KJ_SorceryCasting_SpellCosts_Level3_1;KJ_SorceryCasting_SpellCosts_Level3_2;KJ_SorceryCasting_SpellCosts_Level3_3;KJ_SorceryCasting_SpellCosts_Level3_4;KJ_SorceryCasting_SpellCosts_Level3_5;KJ_SorceryCasting_SpellCosts_Level3_6;KJ_SorceryCasting_SpellCosts_Level3_7;KJ_SorceryCasting_SpellCosts_Level3_8;KJ_SorceryCasting_SpellCosts_Level3_9;KJ_SorceryCasting_SpellCosts_Level3_10;KJ_SorceryCasting_SpellCosts_Level4_1;KJ_SorceryCasting_SpellCosts_Level4_2;KJ_SorceryCasting_SpellCosts_Level4_3;KJ_SorceryCasting_SpellCosts_Level4_4;KJ_SorceryCasting_SpellCosts_Level4_5;KJ_SorceryCasting_SpellCosts_Level4_6;KJ_SorceryCasting_SpellCosts_Level4_7;KJ_SorceryCasting_SpellCosts_Level4_8;KJ_SorceryCasting_SpellCosts_Level4_9;KJ_SorceryCasting_SpellCosts_Level4_10;KJ_SorceryCasting_SpellCosts_Level5_1;KJ_SorceryCasting_SpellCosts_Level5_2;KJ_SorceryCasting_SpellCosts_Level5_3;KJ_SorceryCasting_SpellCosts_Level5_4;KJ_SorceryCasting_SpellCosts_Level5_5;KJ_SorceryCasting_SpellCosts_Level5_6;KJ_SorceryCasting_SpellCosts_Level5_7;KJ_SorceryCasting_SpellCosts_Level5_8;KJ_SorceryCasting_SpellCosts_Level5_9;KJ_SorceryCasting_SpellCosts_Level5_10"
+data "StatusGroups" "SG_RemoveOnRespec"
 
 new entry "KJ_SorceryCasting_Points"
 type "PassiveData"
-data "Properties" "IsHidden;
-data "StatusPropertyFlags" "DisableCombatlog;DisableOverhead;DisablePortraitIndicator"
-data "BoostContext" "OnActionResourcesChanged"
+data "Properties" "IsHidden"
 data "Boosts" "IF(ClassLevelHigherOrEqualThan(1,'Sorcerer')):ActionResource(SorceryPoint,4,0);IF(ClassLevelHigherOrEqualThan(2,'Sorcerer')):ActionResource(SorceryPoint,2,0);IF(ClassLevelHigherOrEqualThan(3,'Sorcerer')):ActionResource(SorceryPoint,8,0);IF(ClassLevelHigherOrEqualThan(4,'Sorcerer')):ActionResource(SorceryPoint,3,0);IF(ClassLevelHigherOrEqualThan(5,'Sorcerer')):ActionResource(SorceryPoint,10,0);IF(ClassLevelHigherOrEqualThan(6,'Sorcerer')):ActionResource(SorceryPoint,5,0);IF(ClassLevelHigherOrEqualThan(7,'Sorcerer')):ActionResource(SorceryPoint,6,0);IF(ClassLevelHigherOrEqualThan(8,'Sorcerer')):ActionResource(SorceryPoint,6,0);IF(ClassLevelHigherOrEqualThan(9,'Sorcerer')):ActionResource(SorceryPoint,13,0);IF(ClassLevelHigherOrEqualThan(10,'Sorcerer')):ActionResource(SorceryPoint,7,0)"
 
 new entry "KJ_SorceryCasting_Level_1"
