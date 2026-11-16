@@ -3,6 +3,7 @@ local MAX_CHAR_SLOTS = 8
 local SLOTS_PER_LEVEL = 2
 
 local syncChannel = Ext.Net.CreateChannel(ModuleUUID, "SorceryCasting_SyncCharPools")
+local requestChannel = Ext.Net.CreateChannel(ModuleUUID, "SorceryCasting_RequestSync")
 
 local SORCERY_POINT_COSTS = {
     2, -- Level 1
@@ -40,6 +41,14 @@ if Ext.IsClient() then
                 pStat.Boosts = boosts
                 pStat:Sync()
             end
+        end
+    end)
+
+    Ext.Events.GameStateChanged:Subscribe(function(e)
+        if e.ToState == "Running" then
+            Ext.Timer.WaitFor(500, function()
+                requestChannel:SendToServer("")
+            end)
         end
     end)
 end
@@ -166,7 +175,7 @@ if Ext.IsServer() then
             return false
         end
         for _, classInfo in ipairs(entity.Classes.Classes) do
-            if classInfo.ClassUUID == SORCERER_CLASS_UUID and (classInfo.Level or 0) ~= 0 then
+            if tostring(classInfo.ClassUUID) == SORCERER_CLASS_UUID and (classInfo.Level or 0) ~= 0 then
                 return true
             end
         end
@@ -245,7 +254,7 @@ if Ext.IsServer() then
         end
     end
 
-    local function CompileCharacterPool(entity, uuid, childrenMap, payload)
+    local function CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload)
         RemoveAllCharPassives(uuid)
 
         if not HasSorcererLevels(entity) then
@@ -268,12 +277,11 @@ if Ext.IsServer() then
         CharacterActivePassives[uuid] = {}
         GrantSorcererBundle(uuid)
 
-        local sorcSources = GetSorcererProgressionSources()
         local learnedSpells = {}
         if entity.SpellBook ~= nil and entity.SpellBook.Spells ~= nil then
             for _, spellEntry in ipairs(entity.SpellBook.Spells) do
                 local id = spellEntry.Id
-                if id ~= nil and id.Prototype ~= nil and sorcSources[id.ProgressionSource] then
+                if id ~= nil and id.Prototype ~= nil and sorcSources[tostring(id.ProgressionSource)] then
                     CollectSpellFamily(id.Prototype, childrenMap, learnedSpells)
                 end
             end
@@ -351,9 +359,10 @@ if Ext.IsServer() then
         end
 
         local childrenMap = GetSpellChildrenMap()
+        local sorcSources = GetSorcererProgressionSources()
         local payload = {}
 
-        CompileCharacterPool(entity, uuid, childrenMap, payload)
+        CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload)
 
         if next(payload) ~= nil then
             syncChannel:Broadcast(Ext.Json.Stringify(payload))
@@ -364,6 +373,7 @@ if Ext.IsServer() then
 
     local function RebuildAllPartySorcerers()
         local childrenMap = GetSpellChildrenMap()
+        local sorcSources = GetSorcererProgressionSources()
         local teamRows = Osi.DB_PartOfTheTeam:Get(nil) or {}
         local payload = {}
 
@@ -379,7 +389,7 @@ if Ext.IsServer() then
             local uuid = NormalizeUuid(row[1])
             local entity = uuid ~= nil and Ext.Entity.Get(uuid) or nil
             if entity ~= nil then
-                CompileCharacterPool(entity, uuid, childrenMap, payload)
+                CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload)
                 if CharacterSlotMap[uuid] ~= nil then
                     count = count + 1
                 end
@@ -389,6 +399,10 @@ if Ext.IsServer() then
         syncChannel:Broadcast(Ext.Json.Stringify(payload))
         _P("[SorceryCasting] Initialized Sorcerer spell pools for " .. tostring(count) .. " recruited character(s).")
     end
+
+    requestChannel:SetHandler(function()
+        RebuildAllPartySorcerers()
+    end)
 
     Ext.Events.GameStateChanged:Subscribe(function(e)
         if e.ToState == "Running" then
