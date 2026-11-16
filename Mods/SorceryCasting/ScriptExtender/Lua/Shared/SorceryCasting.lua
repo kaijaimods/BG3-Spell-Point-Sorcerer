@@ -48,6 +48,49 @@ if Ext.IsServer() then
     local CachedChildrenMap = nil
     local CharacterSlotMap = {}
     local CharacterActivePassives = {}
+	local CachedSorcSources = nil
+
+    local function GetSorcererProgressionSources()
+        if CachedSorcSources ~= nil then
+            return CachedSorcSources
+        end
+
+        CachedSorcSources = {
+            [SORCERER_CLASS_UUID] = true,
+        }
+        local sorcTables = {}
+
+        local allClasses = Ext.StaticData.GetAll("ClassDescription") or {}
+        for _, rawClassUuid in ipairs(allClasses) do
+            local classUuid = tostring(rawClassUuid)
+            local classDesc = Ext.StaticData.Get(rawClassUuid, "ClassDescription")
+            if classDesc ~= nil then
+                local parentGuid = classDesc.ParentGuid ~= nil and tostring(classDesc.ParentGuid) or ""
+                if classUuid == SORCERER_CLASS_UUID or parentGuid == SORCERER_CLASS_UUID then
+                    CachedSorcSources[classUuid] = true
+                    if classDesc.ProgressionTableUUID ~= nil then
+                        local tableUuid = tostring(classDesc.ProgressionTableUUID)
+                        sorcTables[tableUuid] = true
+                        CachedSorcSources[tableUuid] = true
+                    end
+                end
+            end
+        end
+
+        local allProgressions = Ext.StaticData.GetAll("Progression") or {}
+        for _, rawProgUuid in ipairs(allProgressions) do
+            local progUuid = tostring(rawProgUuid)
+            local prog = Ext.StaticData.Get(rawProgUuid, "Progression")
+            if prog ~= nil and prog.TableUUID ~= nil then
+                local tableUuid = tostring(prog.TableUUID)
+                if sorcTables[tableUuid] or CachedSorcSources[tableUuid] then
+                    CachedSorcSources[progUuid] = true
+                end
+            end
+        end
+
+        return CachedSorcSources
+    end
 
     local function NormalizeUuid(guid)
         if guid ~= nil and math.floor(#guid / 36) ~= 0 then
@@ -225,11 +268,12 @@ if Ext.IsServer() then
         CharacterActivePassives[uuid] = {}
         GrantSorcererBundle(uuid)
 
+        local sorcSources = GetSorcererProgressionSources()
         local learnedSpells = {}
         if entity.SpellBook ~= nil and entity.SpellBook.Spells ~= nil then
             for _, spellEntry in ipairs(entity.SpellBook.Spells) do
                 local id = spellEntry.Id
-                if id ~= nil and id.Prototype ~= nil and id.ProgressionSource == SORCERER_CLASS_UUID then
+                if id ~= nil and id.Prototype ~= nil and sorcSources[id.ProgressionSource] then
                     CollectSpellFamily(id.Prototype, childrenMap, learnedSpells)
                 end
             end
