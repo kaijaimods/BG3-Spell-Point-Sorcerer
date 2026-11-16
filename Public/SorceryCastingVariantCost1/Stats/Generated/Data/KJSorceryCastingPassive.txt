@@ -1,11 +1,26 @@
 new entry "KJ_SorceryCasting_Passive"
 type "PassiveData"
-using "Sorcery Point Casting"
 data "DisplayName" "c13e6e6b-7429-4ae4-b510-ca38884f7ab1;1"
 data "Description" "35f95e84-3d7b-46f8-bf6f-22a4a3d9adf1;1"
 data "Icon" "statIcons_WildMagic_SorceryPoints"
 data "Properties" "IsToggled;ToggledDefaultAddToHotbar;ToggledDefaultOn;MetaMagic"
-data "Boosts" "UnlockSpellVariant(KJCanSorceryCast(), ModifyUseCosts(Add,SorceryPoint,SpellPowerLevel,0), ModifyUseCosts(Replace,SpellSlotsGroup,0,-1,SpellSlotsGroup))"
+data "ToggleOnFunctors" "ApplyStatus(SELF,KJ_SORCERYCASTING_ACTIVE,100,-1)"
+data "ToggleOffFunctors" "RemoveStatus(SELF,KJ_SORCERYCASTING_ACTIVE)"
+
+new entry "KJ_SORCERYCASTING_ACTIVE"
+type "StatusData"
+data "StatusType" "BOOST"
+data "DisplayName" "c13e6e6b-7429-4ae4-b510-ca38884f7ab1;1"
+data "Description" "35f95e84-3d7b-46f8-bf6f-22a4a3d9adf1;1"
+data "Icon" "statIcons_WildMagic_SorceryPoints"
+data "StackId" "KJ_SORCERYCASTING_ACTIVE"
+data "StatusGroups" "SG_RemoveOnRespec"
+
+new entry "KJ_SorceryCasting_Points"
+type "PassiveData"
+data "Properties" "IsHidden"
+data "Boosts" "IF(ClassLevelHigherOrEqualThan(1,'Sorcerer')):ActionResource(SorceryPoint,2,0);IF(ClassLevelHigherOrEqualThan(2,'Sorcerer')):ActionResource(SorceryPoint,1,0);IF(ClassLevelHigherOrEqualThan(3,'Sorcerer')):ActionResource(SorceryPoint,5,0);IF(ClassLevelHigherOrEqualThan(4,'Sorcerer')):ActionResource(SorceryPoint,2,0);IF(ClassLevelHigherOrEqualThan(5,'Sorcerer')):ActionResource(SorceryPoint,6,0);IF(ClassLevelHigherOrEqualThan(6,'Sorcerer')):ActionResource(SorceryPoint,3,0);IF(ClassLevelHigherOrEqualThan(7,'Sorcerer')):ActionResource(SorceryPoint,4,0);IF(ClassLevelHigherOrEqualThan(8,'Sorcerer')):ActionResource(SorceryPoint,4,0);IF(ClassLevelHigherOrEqualThan(9,'Sorcerer')):ActionResource(SorceryPoint,9,0);IF(ClassLevelHigherOrEqualThan(10,'Sorcerer')):ActionResource(SorceryPoint,5,0)"
+
 
 new entry "KJ_SorceryCasting_Level_1"
 type "PassiveData"

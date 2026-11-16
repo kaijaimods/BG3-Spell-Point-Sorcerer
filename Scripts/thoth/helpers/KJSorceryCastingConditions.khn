@@ -1,5 +1,5 @@
 local __util = require 'larian.util'
 
 function KJCanSorceryCast()
-    return HasUseCosts('SpellSlot') & HasSpellFlag(SpellFlags.Spell) & (IsSpellLevel(1) | IsSpellLevel(2) | IsSpellLevel(3) | IsSpellLevel(4) | IsSpellLevel(5))
+    return HasUseCosts('SpellSlot') & HasSpellFlag(SpellFlags.Spell)
 end
