@@ -133,13 +133,23 @@ local function CollectSpellFamily(rootSpell, childrenMap, collected)
     end
 end
 
-local function GetSpellSlotLevel(spellName)
-    local sStat = Ext.Stats.Get(spellName)
-    if sStat == nil then
+local function SafeGetUseCosts(stat)
+    if stat == nil or stat.ModifierList ~= "SpellData" then
         return nil
     end
-    local costStr = sStat.UseCosts or ""
-    local slotStr = string.match(costStr, "SpellSlots?G?r?o?u?p?:%d+:%d+:(%d+)")
+    local ok, costs = pcall(function()
+        return stat.UseCosts
+    end)
+    return ok and costs or nil
+end
+
+local function GetSpellSlotLevel(spellName)
+    local sStat = Ext.Stats.Get(spellName)
+    local costStr = SafeGetUseCosts(sStat)
+    if costStr == nil then
+        return nil
+    end
+    local slotStr = string.match(costStr, "[%w_]*SpellSlots?G?r?o?u?p?:%d+:%d+:(%d+)")
     return tonumber(slotStr) or sStat.Level
 end
 
@@ -151,7 +161,7 @@ local function BuildInterruptToSpellsMap()
     for _, spellName in ipairs(allSpells) do
         if not IsNpcOrIgnoredSpell(spellName) then
             local sStat = Ext.Stats.Get(spellName)
-            if sStat ~= nil then
+            if sStat ~= nil and sStat.ModifierList == "SpellData" then
                 local intProto = sStat.InterruptPrototype
                 if intProto ~= nil and intProto ~= "" then
                     local lvl = GetSpellSlotLevel(spellName) or 99
@@ -171,15 +181,21 @@ local function BuildInterruptToSpellsMap()
 
     local allInterrupts = Ext.Stats.GetStats("InterruptData") or {}
     for _, intName in ipairs(allInterrupts) do
-        if not string.find(intName, "^KJ_SP_Interrupt_") and not IsNpcOrIgnoredSpell(intName) then
+        if not string.find(intName, "^KJ_SP_Interrupt_")
+            and not string.find(intName, "^Interrupt_UAWC_PM_")
+            and not IsNpcOrIgnoredSpell(intName) then
             local iStat = Ext.Stats.Get(intName)
-            if iStat ~= nil and iStat.Success ~= nil then
-                for _, group in ipairs(iStat.Success) do
-                    if group.Functors ~= nil then
-                        for _, functor in ipairs(group.Functors) do
-                            if functor.TypeId == "UseSpell" and functor.SpellId ~= nil and functor.SpellId ~= "" then
-                                map[intName] = map[intName] or {}
-                                table.insert(map[intName], functor.SpellId)
+            if iStat ~= nil then
+                for _, functorList in ipairs({ iStat.Properties, iStat.Success }) do
+                    if functorList ~= nil then
+                        for _, group in ipairs(functorList) do
+                            if group.Functors ~= nil then
+                                for _, functor in ipairs(group.Functors) do
+                                    if functor.TypeId == "UseSpell" and functor.SpellId ~= nil and functor.SpellId ~= "" then
+                                        map[intName] = map[intName] or {}
+                                        table.insert(map[intName], functor.SpellId)
+                                    end
+                                end
                             end
                         end
                     end
@@ -224,23 +240,44 @@ local function IsRedundantUpcastInterrupt(interruptName, intStat)
     return childProps == parentProps and childSucc == parentSucc
 end
 
+local function RegisterDynamicInterruptForSpell(spellName, newIntName, slotLevel)
+    if spellName == nil or spellName == "" then
+        return
+    end
+    SpellToDynamicInterrupts[spellName] = SpellToDynamicInterrupts[spellName] or {}
+    for _, existing in ipairs(SpellToDynamicInterrupts[spellName]) do
+        if existing.interrupt == newIntName then
+            return
+        end
+    end
+    table.insert(SpellToDynamicInterrupts[spellName], {
+        interrupt = newIntName,
+        level = slotLevel,
+    })
+end
+
 local function GenerateDynamicSorcererReactions()
     SpellToDynamicInterrupts = {}
     local intToSpells = BuildInterruptToSpellsMap()
     local createdCount = 0
 
+    local slotPattern = "[%w_]*SpellSlots?G?r?o?u?p?:%d+:%d+:(%d+)"
+    local replacePattern = "[%w_]*SpellSlots?G?r?o?u?p?:%d+:%d+:%d+"
+
     for interruptName, spellList in pairs(intToSpells) do
-        if not string.find(interruptName, "^KJ_SP_Interrupt_") and not IsNpcOrIgnoredSpell(interruptName) then
+        if not string.find(interruptName, "^KJ_SP_Interrupt_")
+            and not string.find(interruptName, "^Interrupt_UAWC_PM_")
+            and not IsNpcOrIgnoredSpell(interruptName) then
             local intStat = Ext.Stats.Get(interruptName)
             if intStat ~= nil and not IsRedundantUpcastInterrupt(interruptName, intStat) then
                 local intCostStr = intStat.Cost or ""
-                local intSlotStr = string.match(intCostStr, "SpellSlots?G?r?o?u?p?:%d+:%d+:(%d+)")
+                local intSlotStr = string.match(intCostStr, slotPattern)
 
                 for _, linkedSpell in ipairs(spellList) do
                     local spellStat = Ext.Stats.Get(linkedSpell)
-                    if spellStat ~= nil and not IsNpcOrIgnoredSpell(linkedSpell) then
-                        local spellCostStr = spellStat.UseCosts or ""
-                        local spellSlotStr = string.match(spellCostStr, "SpellSlots?G?r?o?u?p?:%d+:%d+:(%d+)")
+                    local spellCostStr = SafeGetUseCosts(spellStat)
+                    if spellCostStr ~= nil and not IsNpcOrIgnoredSpell(linkedSpell) then
+                        local spellSlotStr = string.match(spellCostStr, slotPattern)
                         local slotLevel = tonumber(intSlotStr) or tonumber(spellSlotStr)
                         local spCost = slotLevel ~= nil and SORCERY_POINT_COSTS[slotLevel] or nil
 
@@ -252,23 +289,25 @@ local function GenerateDynamicSorcererReactions()
 
                             if newInt ~= nil then
                                 if intSlotStr ~= nil then
-                                    newInt.Cost = string.gsub(intCostStr, "SpellSlots?G?r?o?u?p?:%d+:%d+:%d+", "SorceryPoint:" .. tostring(spCost))
+                                    newInt.Cost = string.gsub(intCostStr, replacePattern, "SorceryPoint:" .. tostring(spCost))
                                 else
                                     local baseCost = intCostStr ~= "" and intCostStr or "ReactionActionPoint:1"
                                     newInt.Cost = string.format("%s;SorceryPoint:%d", baseCost, spCost)
                                 end
 
-                                if newInt.Success ~= nil then
-                                    for _, group in ipairs(newInt.Success) do
-                                        if group.Functors ~= nil then
-                                            for _, functor in ipairs(group.Functors) do
-                                                if functor.TypeId == "UseSpell" and functor.SpellId == linkedSpell then
-                                                    local newSpellName = "KJ_SP_Spell_" .. linkedSpell
-                                                    local newSpell = Ext.Stats.Get(newSpellName) or Ext.Stats.Create(newSpellName, "SpellData", linkedSpell)
-                                                    if newSpell ~= nil then
-                                                        newSpell.UseCosts = string.gsub(spellCostStr, "SpellSlots?G?r?o?u?p?:%d+:%d+:%d+", "SorceryPoint:" .. tostring(spCost))
-                                                        newSpell:Sync()
-                                                        functor.SpellId = newSpellName
+                                for _, functorList in ipairs({ newInt.Properties, newInt.Success }) do
+                                    if functorList ~= nil then
+                                        for _, group in ipairs(functorList) do
+                                            if group.Functors ~= nil then
+                                                for _, functor in ipairs(group.Functors) do
+                                                    if functor.TypeId == "UseSpell" and functor.SpellId == linkedSpell then
+                                                        local newSpellName = "KJ_SP_Spell_" .. linkedSpell
+                                                        local newSpell = Ext.Stats.Get(newSpellName) or Ext.Stats.Create(newSpellName, "SpellData", linkedSpell)
+                                                        if newSpell ~= nil then
+                                                            newSpell.UseCosts = string.gsub(spellCostStr, replacePattern, "SorceryPoint:" .. tostring(spCost))
+                                                            newSpell:Sync()
+                                                            functor.SpellId = newSpellName
+                                                        end
                                                     end
                                                 end
                                             end
@@ -277,11 +316,23 @@ local function GenerateDynamicSorcererReactions()
                                 end
 
                                 newInt:Sync()
-                                SpellToDynamicInterrupts[linkedSpell] = SpellToDynamicInterrupts[linkedSpell] or {}
-                                table.insert(SpellToDynamicInterrupts[linkedSpell], {
-                                    interrupt = newIntName,
-                                    level = slotLevel,
-                                })
+                                RegisterDynamicInterruptForSpell(linkedSpell, newIntName, slotLevel)
+
+                                local rootId = spellStat.RootSpellID
+                                if rootId ~= nil and rootId ~= "" then
+                                    RegisterDynamicInterruptForSpell(rootId, newIntName, slotLevel)
+                                end
+
+                                if string.find(linkedSpell, "UAWC_") then
+                                    local baseFromSpell = string.gsub(linkedSpell, "^UAWC_", "")
+                                    RegisterDynamicInterruptForSpell(baseFromSpell, newIntName, slotLevel)
+                                end
+
+                                if string.find(interruptName, "^Interrupt_UAWC_") then
+                                    local baseFromInt = string.gsub(interruptName, "^Interrupt_UAWC_", "")
+                                    RegisterDynamicInterruptForSpell(baseFromInt, newIntName, slotLevel)
+                                end
+
                                 createdCount = createdCount + 1
                             end
                         end
@@ -318,6 +369,7 @@ if Ext.IsClient() then
 
     Ext.Events.GameStateChanged:Subscribe(function(e)
         if e.ToState == "Running" then
+            GenerateDynamicSorcererReactions()
             Ext.Timer.WaitFor(500, function()
                 requestChannel:SendToServer("")
             end)
@@ -646,6 +698,7 @@ if Ext.IsServer() then
     end
 
     local function RebuildAllPartySorcerers()
+        SpellToDynamicInterrupts = {}
         EnsureDynamicReactionsPrepared()
         local childrenMap = GetSpellChildrenMap()
         local sorcSources = GetSorcererProgressionSources()
