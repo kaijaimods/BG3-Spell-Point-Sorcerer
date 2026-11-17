@@ -257,13 +257,11 @@ local function IsNonScalingUpcastSpell(spellName)
         return false
     end
 
-    -- Skip upcasts that only add extra targets (e.g., Tasha's Hideous Laughter, Hold Person, Blindness)
     local upcastDesc = stat.TooltipUpcastDescription or rootStat.TooltipUpcastDescription or ""
     if upcastDesc == EXTRA_TARGETS_UPCAST_GUID then
         return true
     end
 
-    -- Skip upcasts whose single-target effects/damage/projectiles are identical to the root spell
     local childEffects = SerializeSpellSingleTargetEffects(stat)
     local rootEffects = SerializeSpellSingleTargetEffects(rootStat)
     if childEffects ~= "" and childEffects == rootEffects then
@@ -274,9 +272,9 @@ local function IsNonScalingUpcastSpell(spellName)
 end
 
 local function IsRedundantUpcastInterrupt(interruptName, intStat)
-    -- For KJ_WarCaster interrupts, check the underlying spell directly
     if string.find(interruptName, "^KJ_WC_") then
-        local rawSpell = string.gsub(interruptName, "^KJ_WC_PM_Interrupt_", "")
+        local rawSpell = string.gsub(interruptName, "^KJ_WC_Char%d+_Interrupt_", "")
+        rawSpell = string.gsub(rawSpell, "^KJ_WC_PM_Interrupt_", "")
         rawSpell = string.gsub(rawSpell, "^KJ_WC_Interrupt_", "")
         return IsNonScalingUpcastSpell(rawSpell)
     end
@@ -323,6 +321,70 @@ local function RegisterDynamicInterruptForSpell(spellName, newIntName, slotLevel
         isPolearmMaster = isPolearmMaster or false,
         origInterrupt = origInterrupt,
     })
+end
+
+local function CreateSingleDynamicSorcererReaction(interruptName)
+    if string.find(interruptName, "^KJ_SP_") then
+        return nil
+    end
+
+    local intStat = Ext.Stats.Get(interruptName)
+    if intStat == nil or intStat.ModifierList ~= "InterruptData" then
+        return nil
+    end
+
+    local costStr = intStat.Cost or ""
+    if not string.find(costStr, "ReactionActionPoint") then
+        return nil
+    end
+
+    local slotPattern = "[%w_]*SpellSlots?G?r?o?u?p?:%d+:%d+:(%d+)"
+    local replacePattern = "[%w_]*SpellSlots?G?r?o?u?p?:%d+:%d+:%d+"
+    local slotStr = string.match(costStr, slotPattern)
+    local slotLevel = tonumber(slotStr)
+    if slotLevel == nil or slotLevel == 0 then
+        return nil
+    end
+
+    if IsRedundantUpcastInterrupt(interruptName, intStat) then
+        return nil
+    end
+
+    local spCost = SORCERY_POINT_COSTS[slotLevel]
+    if spCost == nil then
+        return nil
+    end
+
+    local newIntName = string.format("KJ_SP_Interrupt_%s_L%d", interruptName, slotLevel)
+    local newInt = Ext.Stats.Get(newIntName) or Ext.Stats.Create(newIntName, "InterruptData", interruptName)
+    if newInt == nil then
+        return nil
+    end
+
+    newInt.DisplayName = intStat.DisplayName
+    newInt.Description = intStat.Description
+    newInt.Icon = intStat.Icon
+    newInt.Cost = string.gsub(costStr, replacePattern, "SorceryPoint:" .. tostring(spCost))
+
+    local origCond = intStat.Conditions or ""
+    if origCond ~= "" then
+        newInt.Conditions = string.format("(%s) and HasActionResource('SorceryPoint', %d, 0, false, false, context.Source)", origCond, spCost)
+    else
+        newInt.Conditions = string.format("HasActionResource('SorceryPoint', %d, 0, false, false, context.Source)", spCost)
+    end
+
+    newInt:Sync()
+
+    local isPM = string.find(interruptName, "^Interrupt_UAWC_PM_") ~= nil or string.find(interruptName, "^KJ_WC_PM_") ~= nil
+
+    if string.find(interruptName, "^KJ_WC_") then
+        local baseFromKJ = string.gsub(interruptName, "^KJ_WC_Char%d+_Interrupt_", "")
+        baseFromKJ = string.gsub(baseFromKJ, "^KJ_WC_PM_Interrupt_", "")
+        baseFromKJ = string.gsub(baseFromKJ, "^KJ_WC_Interrupt_", "")
+        RegisterDynamicInterruptForSpell(baseFromKJ, newIntName, slotLevel, isPM, interruptName)
+    end
+
+    return newIntName
 end
 
 local function GenerateDynamicSorcererReactions()
@@ -385,7 +447,9 @@ local function GenerateDynamicSorcererReactions()
                                 end
 
                                 newInt:Sync()
-                                local isPM = string.find(interruptName, "^Interrupt_UAWC_PM_") ~= nil or string.find(linkedSpell, "^UAWC_PM_") ~= nil
+                                local isPM = string.find(interruptName, "^Interrupt_UAWC_PM_") ~= nil
+                                    or string.find(linkedSpell, "^UAWC_PM_") ~= nil
+                                    or string.find(interruptName, "^KJ_WC_PM_") ~= nil
 
                                 RegisterDynamicInterruptForSpell(linkedSpell, newIntName, slotLevel, isPM, interruptName)
 
@@ -404,6 +468,13 @@ local function GenerateDynamicSorcererReactions()
                                     local baseFromInt = string.gsub(interruptName, "^Interrupt_UAWC_PM_", "")
                                     baseFromInt = string.gsub(baseFromInt, "^Interrupt_UAWC_", "")
                                     RegisterDynamicInterruptForSpell(baseFromInt, newIntName, slotLevel, isPM, interruptName)
+                                end
+
+                                if string.find(interruptName, "^KJ_WC_") then
+                                    local baseFromKJ = string.gsub(interruptName, "^KJ_WC_Char%d+_Interrupt_", "")
+                                    baseFromKJ = string.gsub(baseFromKJ, "^KJ_WC_PM_Interrupt_", "")
+                                    baseFromKJ = string.gsub(baseFromKJ, "^KJ_WC_Interrupt_", "")
+                                    RegisterDynamicInterruptForSpell(baseFromKJ, newIntName, slotLevel, isPM, interruptName)
                                 end
 
                                 createdCount = createdCount + 1
@@ -430,8 +501,12 @@ end)
 
 if Ext.IsClient() then
     syncChannel:SetHandler(function(data)
-        local updates = Ext.Json.Parse(data)
-        for passiveName, boosts in pairs(updates) do
+        local packet = Ext.Json.Parse(data)
+        local passiveUpdates = packet.passives or packet
+        for _, origIntName in ipairs(packet.dynamicInterrupts or {}) do
+            CreateSingleDynamicSorcererReaction(origIntName)
+        end
+        for passiveName, boosts in pairs(passiveUpdates) do
             local pStat = Ext.Stats.Get(passiveName)
             if pStat ~= nil then
                 pStat.Boosts = boosts
@@ -600,7 +675,7 @@ if Ext.IsServer() then
         end
     end
 
-    local function CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload)
+    local function CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload, dynamicInterrupts)
         RemoveAllCharPassives(uuid)
         RemoveAllCharReactionPassives(uuid)
 
@@ -634,6 +709,23 @@ if Ext.IsServer() then
                     CollectSpellFamily(id.Prototype, childrenMap, learnedSpells)
                 end
             end
+        end
+
+        -- Expand linked spell containers (e.g. Chromatic Orb -> elemental variants)
+        local containerChildren = {}
+        for spellName, _ in pairs(learnedSpells) do
+            local sStat = Ext.Stats.Get(spellName)
+            if sStat ~= nil and sStat.ModifierList == "SpellData" then
+                local cSpells = sStat.ContainerSpells or ""
+                if cSpells ~= "" then
+                    for subSpell in string.gmatch(cSpells, "[^;]+") do
+                        CollectSpellFamily(subSpell, childrenMap, containerChildren)
+                    end
+                end
+            end
+        end
+        for subSpell, _ in pairs(containerChildren) do
+            learnedSpells[subSpell] = true
         end
 
         local spellsByLevel = { {}, {}, {}, {}, {} }
@@ -695,7 +787,14 @@ if Ext.IsServer() then
         if entity.InterruptContainer ~= nil and entity.InterruptContainer.Interrupts ~= nil then
             for _, intEnt in ipairs(entity.InterruptContainer.Interrupts) do
                 if intEnt ~= nil and intEnt.InterruptData ~= nil and intEnt.InterruptData.Interrupt ~= nil then
-                    unlockedInterrupts[intEnt.InterruptData.Interrupt] = true
+                    local intId = intEnt.InterruptData.Interrupt
+                    unlockedInterrupts[intId] = true
+                    if string.find(intId, "^KJ_WC_Char%d+_Interrupt_") then
+                        local spIntName = CreateSingleDynamicSorcererReaction(intId)
+                        if spIntName ~= nil then
+                            table.insert(dynamicInterrupts, intId)
+                        end
+                    end
                 end
             end
         end
@@ -717,7 +816,6 @@ if Ext.IsServer() then
                 end
             end
         end
-	
 
         local reactSlot = 1
         local currentReactExpr = ""
@@ -765,11 +863,15 @@ if Ext.IsServer() then
         local childrenMap = GetSpellChildrenMap()
         local sorcSources = GetSorcererProgressionSources()
         local payload = {}
+        local dynamicInterrupts = {}
 
-        CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload)
+        CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload, dynamicInterrupts)
 
-        if next(payload) ~= nil then
-            syncChannel:Broadcast(Ext.Json.Stringify(payload))
+        if next(payload) ~= nil or #dynamicInterrupts > 0 then
+            syncChannel:Broadcast(Ext.Json.Stringify({
+                passives = payload,
+                dynamicInterrupts = dynamicInterrupts,
+            }))
         end
 
         Ext.Timer.WaitFor(100, function()
@@ -788,6 +890,7 @@ if Ext.IsServer() then
         local childrenMap = GetSpellChildrenMap()
         local sorcSources = GetSorcererProgressionSources()
         local payload = {}
+        local dynamicInterrupts = {}
 
         CharacterSlotMap = {}
         CharacterActivePassives = {}
@@ -815,7 +918,7 @@ if Ext.IsServer() then
                 seenUuids[uuid] = true
                 local entity = Ext.Entity.Get(uuid)
                 if entity ~= nil then
-                    CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload)
+                    CompileCharacterPool(entity, uuid, childrenMap, sorcSources, payload, dynamicInterrupts)
                     if CharacterSlotMap[uuid] ~= nil then
                         count = count + 1
                     end
@@ -823,7 +926,10 @@ if Ext.IsServer() then
             end
         end
 
-        syncChannel:Broadcast(Ext.Json.Stringify(payload))
+        syncChannel:Broadcast(Ext.Json.Stringify({
+            passives = payload,
+            dynamicInterrupts = dynamicInterrupts,
+        }))
 
         Ext.Timer.WaitFor(100, function()
             for uuid, _ in pairs(CharacterSlotMap) do
@@ -837,13 +943,17 @@ if Ext.IsServer() then
         _P("[SorceryCasting] Initialized Sorcerer spell and reaction pools for " .. tostring(count) .. " recruited character(s).")
     end
 
+    function KJ_RebuildSorcerers()
+        RebuildAllPartySorcerers()
+    end
+
     requestChannel:SetHandler(function()
         RebuildAllPartySorcerers()
     end)
 
     Ext.Events.GameStateChanged:Subscribe(function(e)
         if e.ToState == "Running" then
-            Ext.Timer.WaitFor(300, function()
+            Ext.Timer.WaitFor(600, function()
                 RebuildAllPartySorcerers()
             end)
         end
@@ -866,6 +976,15 @@ if Ext.IsServer() then
                 end
             end)
         end
+
+        Ext.Entity.OnChange("InterruptContainer", function(entity)
+            if entity ~= nil and entity.Uuid ~= nil and entity.Uuid.EntityUuid ~= nil then
+                local uuid = NormalizeUuid(entity.Uuid.EntityUuid)
+                if uuid ~= nil and CharacterSlotMap[uuid] ~= nil then
+                    DelayedSingleRebuild(uuid)
+                end
+            end
+        end)
 
         Ext.Osiris.RegisterListener("StatusApplied", 4, "after", function(object, status, causee, storyActionID)
             if status == "KJ_SORCERYCASTING_ACTIVE" then
@@ -891,7 +1010,7 @@ if Ext.IsServer() then
         end)
 
         Ext.Osiris.RegisterListener("UserConnected", 3, "after", function()
-            Ext.Timer.WaitFor(500, function()
+            Ext.Timer.WaitFor(750, function()
                 RebuildAllPartySorcerers()
             end)
         end)
