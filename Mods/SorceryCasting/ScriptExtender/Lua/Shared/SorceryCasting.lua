@@ -454,6 +454,7 @@ if Ext.IsServer() then
     local CharacterSlotMap = {}
     local CharacterActivePassives = {}
     local CharacterReactionPassives = {}
+    local PendingRebuilds = {}
 
     local function NormalizeUuid(guid)
         if guid ~= nil and math.floor(#guid / 36) ~= 0 then
@@ -854,8 +855,15 @@ if Ext.IsServer() then
             if uuid == nil then
                 return
             end
-            Ext.Timer.WaitFor(500, function()
-                RebuildSingleSorcerer(uuid)
+
+            local token = (PendingRebuilds[uuid] or 0) + 1
+            PendingRebuilds[uuid] = token
+
+            Ext.Timer.WaitFor(650, function()
+                if PendingRebuilds[uuid] == token then
+                    PendingRebuilds[uuid] = nil
+                    RebuildSingleSorcerer(uuid)
+                end
             end)
         end
 
