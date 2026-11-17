@@ -977,15 +977,6 @@ if Ext.IsServer() then
             end)
         end
 
-        Ext.Entity.OnChange("InterruptContainer", function(entity)
-            if entity ~= nil and entity.Uuid ~= nil and entity.Uuid.EntityUuid ~= nil then
-                local uuid = NormalizeUuid(entity.Uuid.EntityUuid)
-                if uuid ~= nil and CharacterSlotMap[uuid] ~= nil then
-                    DelayedSingleRebuild(uuid)
-                end
-            end
-        end)
-
         Ext.Osiris.RegisterListener("StatusApplied", 4, "after", function(object, status, causee, storyActionID)
             if status == "KJ_SORCERYCASTING_ACTIVE" then
                 ApplyCharacterPassives(object)
