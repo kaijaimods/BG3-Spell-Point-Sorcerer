@@ -207,6 +207,8 @@ local function BuildInterruptToSpellsMap()
     return map
 end
 
+local EXTRA_TARGETS_UPCAST_GUID = "04cc3403-f67f-470b-b49e-a1802cc7a6ad"
+
 local function SerializeFunctorGroups(groups)
     if groups == nil then
         return ""
@@ -217,7 +219,68 @@ local function SerializeFunctorGroups(groups)
     return ok and dumped or ""
 end
 
+local function SerializeSpellSingleTargetEffects(stat)
+    if stat == nil or stat.ModifierList ~= "SpellData" then
+        return ""
+    end
+    local ok, dumped = pcall(function()
+        return Ext.Json.Stringify({
+            succ = Ext.DumpExport(stat.SpellSuccess),
+            fail = Ext.DumpExport(stat.SpellFail),
+            proj = stat.ProjectileCount,
+            dmg = stat.TooltipDamageList,
+        })
+    end)
+    return ok and dumped or ""
+end
+
+local function IsNonScalingUpcastSpell(spellName)
+    if spellName == nil or spellName == "" then
+        return false
+    end
+    local stat = Ext.Stats.Get(spellName)
+    if stat == nil or stat.ModifierList ~= "SpellData" then
+        return false
+    end
+
+    local rootName = stat.RootSpellID or ""
+    if rootName == "" or rootName == spellName then
+        if string.match(spellName, "_%d+$") and (stat.Using or "") ~= "" then
+            rootName = stat.Using
+        else
+            return false
+        end
+    end
+
+    local rootStat = Ext.Stats.Get(rootName)
+    if rootStat == nil or rootStat.ModifierList ~= "SpellData" then
+        return false
+    end
+
+    -- Skip upcasts that only add extra targets (e.g., Tasha's Hideous Laughter, Hold Person, Blindness)
+    local upcastDesc = stat.TooltipUpcastDescription or rootStat.TooltipUpcastDescription or ""
+    if upcastDesc == EXTRA_TARGETS_UPCAST_GUID then
+        return true
+    end
+
+    -- Skip upcasts whose single-target effects/damage/projectiles are identical to the root spell
+    local childEffects = SerializeSpellSingleTargetEffects(stat)
+    local rootEffects = SerializeSpellSingleTargetEffects(rootStat)
+    if childEffects ~= "" and childEffects == rootEffects then
+        return true
+    end
+
+    return false
+end
+
 local function IsRedundantUpcastInterrupt(interruptName, intStat)
+    -- For KJ_WarCaster interrupts, check the underlying spell directly
+    if string.find(interruptName, "^KJ_WC_") then
+        local rawSpell = string.gsub(interruptName, "^KJ_WC_PM_Interrupt_", "")
+        rawSpell = string.gsub(rawSpell, "^KJ_WC_Interrupt_", "")
+        return IsNonScalingUpcastSpell(rawSpell)
+    end
+
     if not string.match(interruptName, "_%d+$") then
         return false
     end
@@ -237,10 +300,14 @@ local function IsRedundantUpcastInterrupt(interruptName, intStat)
     local childSucc = SerializeFunctorGroups(intStat.Success)
     local parentSucc = SerializeFunctorGroups(parentStat.Success)
 
+    if childProps == "" and childSucc == "" then
+        return false
+    end
+
     return childProps == parentProps and childSucc == parentSucc
 end
 
-local function RegisterDynamicInterruptForSpell(spellName, newIntName, slotLevel)
+local function RegisterDynamicInterruptForSpell(spellName, newIntName, slotLevel, isPolearmMaster, origInterrupt)
     if spellName == nil or spellName == "" then
         return
     end
@@ -253,6 +320,8 @@ local function RegisterDynamicInterruptForSpell(spellName, newIntName, slotLevel
     table.insert(SpellToDynamicInterrupts[spellName], {
         interrupt = newIntName,
         level = slotLevel,
+        isPolearmMaster = isPolearmMaster or false,
+        origInterrupt = origInterrupt,
     })
 end
 
@@ -316,21 +385,25 @@ local function GenerateDynamicSorcererReactions()
                                 end
 
                                 newInt:Sync()
-                                RegisterDynamicInterruptForSpell(linkedSpell, newIntName, slotLevel)
+                                local isPM = string.find(interruptName, "^Interrupt_UAWC_PM_") ~= nil or string.find(linkedSpell, "^UAWC_PM_") ~= nil
+
+                                RegisterDynamicInterruptForSpell(linkedSpell, newIntName, slotLevel, isPM, interruptName)
 
                                 local rootId = spellStat.RootSpellID
                                 if rootId ~= nil and rootId ~= "" then
-                                    RegisterDynamicInterruptForSpell(rootId, newIntName, slotLevel)
+                                    RegisterDynamicInterruptForSpell(rootId, newIntName, slotLevel, isPM, interruptName)
                                 end
 
                                 if string.find(linkedSpell, "UAWC_") then
-                                    local baseFromSpell = string.gsub(linkedSpell, "^UAWC_", "")
-                                    RegisterDynamicInterruptForSpell(baseFromSpell, newIntName, slotLevel)
+                                    local baseFromSpell = string.gsub(linkedSpell, "^UAWC_PM_", "")
+                                    baseFromSpell = string.gsub(baseFromSpell, "^UAWC_", "")
+                                    RegisterDynamicInterruptForSpell(baseFromSpell, newIntName, slotLevel, isPM, interruptName)
                                 end
 
                                 if string.find(interruptName, "^Interrupt_UAWC_") then
-                                    local baseFromInt = string.gsub(interruptName, "^Interrupt_UAWC_", "")
-                                    RegisterDynamicInterruptForSpell(baseFromInt, newIntName, slotLevel)
+                                    local baseFromInt = string.gsub(interruptName, "^Interrupt_UAWC_PM_", "")
+                                    baseFromInt = string.gsub(baseFromInt, "^Interrupt_UAWC_", "")
+                                    RegisterDynamicInterruptForSpell(baseFromInt, newIntName, slotLevel, isPM, interruptName)
                                 end
 
                                 createdCount = createdCount + 1
@@ -617,6 +690,15 @@ if Ext.IsServer() then
             FlushChunk(currentExpr)
         end
 
+        local unlockedInterrupts = {}
+        if entity.InterruptContainer ~= nil and entity.InterruptContainer.Interrupts ~= nil then
+            for _, intEnt in ipairs(entity.InterruptContainer.Interrupts) do
+                if intEnt ~= nil and intEnt.InterruptData ~= nil and intEnt.InterruptData.Interrupt ~= nil then
+                    unlockedInterrupts[intEnt.InterruptData.Interrupt] = true
+                end
+            end
+        end
+
         local maxSlotLevel = GetMaxSorcererSpellLevel(entity, uuid)
         local charReactionBoosts = {}
         local seenInterrupts = {}
@@ -626,13 +708,15 @@ if Ext.IsServer() then
             if intList ~= nil then
                 for _, info in ipairs(intList) do
                     local levelAllowed = maxSlotLevel ~= 0 and math.floor(maxSlotLevel / info.level) ~= 0
-                    if not seenInterrupts[info.interrupt] and levelAllowed then
+                    local hasBaseReaction = info.origInterrupt ~= nil and unlockedInterrupts[info.origInterrupt] == true
+                    if not seenInterrupts[info.interrupt] and levelAllowed and hasBaseReaction then
                         seenInterrupts[info.interrupt] = true
                         table.insert(charReactionBoosts, string.format("UnlockInterrupt(%s)", info.interrupt))
                     end
                 end
             end
         end
+	
 
         local reactSlot = 1
         local currentReactExpr = ""
@@ -758,7 +842,9 @@ if Ext.IsServer() then
 
     Ext.Events.GameStateChanged:Subscribe(function(e)
         if e.ToState == "Running" then
-            RebuildAllPartySorcerers()
+            Ext.Timer.WaitFor(300, function()
+                RebuildAllPartySorcerers()
+            end)
         end
     end)
 
