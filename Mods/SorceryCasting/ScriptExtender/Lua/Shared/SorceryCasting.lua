@@ -208,6 +208,23 @@ end
 
 local function BuildInterruptToSpellsMap()
     local map = {}
+    local seenPairs = {}
+
+    local function AddMapping(intName, spellId)
+        if intName == nil or intName == "" or spellId == nil or spellId == "" then
+            return
+        end
+        if string.find(intName, "^KJ_SP_") or IsNpcOrIgnoredSpell(intName) or IsNpcOrIgnoredSpell(spellId) then
+            return
+        end
+        map[intName] = map[intName] or {}
+        seenPairs[intName] = seenPairs[intName] or {}
+        if not seenPairs[intName][spellId] then
+            seenPairs[intName][spellId] = true
+            table.insert(map[intName], spellId)
+        end
+    end
+
     local lowestSpellByInt = {}
     local allSpells = Ext.Stats.GetStats("SpellData") or {}
 
@@ -228,15 +245,12 @@ local function BuildInterruptToSpellsMap()
     end
 
     for intProto, info in pairs(lowestSpellByInt) do
-        map[intProto] = map[intProto] or {}
-        table.insert(map[intProto], info.spell)
+        AddMapping(intProto, info.spell)
     end
 
     local allInterrupts = Ext.Stats.GetStats("InterruptData") or {}
     for _, intName in ipairs(allInterrupts) do
-        if not string.find(intName, "^KJ_SP_")
-            and not string.find(intName, "^Interrupt_UAWC_PM_")
-            and not IsNpcOrIgnoredSpell(intName) then
+        if not string.find(intName, "^KJ_SP_") and not IsNpcOrIgnoredSpell(intName) then
             local iStat = Ext.Stats.Get(intName)
             if iStat ~= nil then
                 for _, functorList in ipairs({ iStat.Properties, iStat.Success }) do
@@ -245,8 +259,7 @@ local function BuildInterruptToSpellsMap()
                             if group.Functors ~= nil then
                                 for _, functor in ipairs(group.Functors) do
                                     if functor.TypeId == "UseSpell" and functor.SpellId ~= nil and functor.SpellId ~= "" then
-                                        map[intName] = map[intName] or {}
-                                        table.insert(map[intName], functor.SpellId)
+                                        AddMapping(intName, functor.SpellId)
                                     end
                                 end
                             end
@@ -262,12 +275,30 @@ end
 
 local EXTRA_TARGETS_UPCAST_GUID = "04cc3403-f67f-470b-b49e-a1802cc7a6ad"
 
-local function StripWarCasterPrefix(interruptName)
-    local base = string.gsub(interruptName, "^KJ_WC_%u%u%u_PM_Interrupt_", "")
-    base = string.gsub(base, "^KJ_WC_%u%u%u_Interrupt_", "")
-    base = string.gsub(base, "^KJ_WC_PM_Interrupt_", "")
-    base = string.gsub(base, "^KJ_WC_Interrupt_", "")
-    return base
+local function CollectSpellAncestors(spellName)
+    local ancestors = {}
+    local queue = { spellName }
+    local visited = {}
+
+    while #queue > 0 do
+        local current = table.remove(queue, 1)
+        if current ~= nil and current ~= "" and not visited[current] then
+            visited[current] = true
+            table.insert(ancestors, current)
+
+            local stat = Ext.Stats.Get(current)
+            if stat ~= nil and stat.ModifierList == "SpellData" then
+                if stat.RootSpellID ~= nil and stat.RootSpellID ~= "" and not visited[stat.RootSpellID] then
+                    table.insert(queue, stat.RootSpellID)
+                end
+                if stat.Using ~= nil and stat.Using ~= "" and not visited[stat.Using] then
+                    table.insert(queue, stat.Using)
+                end
+            end
+        end
+    end
+
+    return ancestors
 end
 
 local function SerializeFunctorGroups(groups)
@@ -304,17 +335,35 @@ local function IsNonScalingUpcastSpell(spellName)
         return false
     end
 
+    -- Resolve the true root spell through RootSpellID or Using inheritance
     local rootName = stat.RootSpellID or ""
     if rootName == "" or rootName == spellName then
-        if string.match(spellName, "_%d+$") and (stat.Using or "") ~= "" then
-            rootName = stat.Using
-        else
-            return false
+        local parent = stat.Using or ""
+        if parent ~= "" then
+            local parentStat = Ext.Stats.Get(parent)
+            if parentStat ~= nil and (parentStat.RootSpellID or "") ~= "" then
+                rootName = parentStat.RootSpellID
+            elseif string.match(parent, "_%d+$") then
+                rootName = string.gsub(parent, "_%d+$", "")
+            elseif string.match(spellName, "_%d+$") then
+                rootName = parent
+            end
         end
+    end
+
+    if rootName == "" or rootName == spellName then
+        return false
     end
 
     local rootStat = Ext.Stats.Get(rootName)
     if rootStat == nil or rootStat.ModifierList ~= "SpellData" then
+        return false
+    end
+
+    -- Skip non-scaling upcasts if either the wrapper or its inherited spell is an upcast tier
+    local effectiveLevel = stat.Level or 0
+    local rootLevel = rootStat.Level or 0
+    if effectiveLevel <= rootLevel and not string.match(spellName, "_%d+$") and not string.match(stat.Using or "", "_%d+$") then
         return false
     end
 
@@ -328,9 +377,12 @@ local function IsNonScalingUpcastSpell(spellName)
     return childEffects ~= "" and childEffects == rootEffects
 end
 
-local function IsRedundantUpcastInterrupt(interruptName, intStat)
-    if string.find(interruptName, "^KJ_WC_") then
-        return IsNonScalingUpcastSpell(StripWarCasterPrefix(interruptName))
+local function IsRedundantUpcastInterrupt(interruptName, intStat, spellList)
+    -- Check if any linked UseSpell target is a non-scaling upcast (works for any mod's wrapper stats)
+    for _, linkedSpell in ipairs(spellList or {}) do
+        if IsNonScalingUpcastSpell(linkedSpell) then
+            return true
+        end
     end
 
     if not string.match(interruptName, "_%d+$") then
@@ -384,11 +436,9 @@ local function GenerateDynamicSorcererReactions()
     local replacePattern = "[%w_]*SpellSlots?G?r?o?u?p?:%d+:%d+:%d+"
 
     for interruptName, spellList in pairs(intToSpells) do
-        if not string.find(interruptName, "^KJ_SP_Interrupt_")
-            and not string.find(interruptName, "^Interrupt_UAWC_PM_")
-            and not IsNpcOrIgnoredSpell(interruptName) then
+        if not string.find(interruptName, "^KJ_SP_") and not IsNpcOrIgnoredSpell(interruptName) then
             local intStat = Ext.Stats.Get(interruptName)
-            if intStat ~= nil and not IsRedundantUpcastInterrupt(interruptName, intStat) then
+            if intStat ~= nil and not IsRedundantUpcastInterrupt(interruptName, intStat, spellList) then
                 local intCostStr = intStat.Cost or ""
                 local intSlotStr = string.match(intCostStr, slotPattern)
 
@@ -433,27 +483,8 @@ local function GenerateDynamicSorcererReactions()
                                 end
 
                                 newInt:Sync()
-                                RegisterDynamicInterruptForSpell(linkedSpell, newIntName, slotLevel, interruptName)
-
-                                local rootId = spellStat.RootSpellID
-                                if rootId ~= nil and rootId ~= "" then
-                                    RegisterDynamicInterruptForSpell(rootId, newIntName, slotLevel, interruptName)
-                                end
-
-                                if string.find(linkedSpell, "UAWC_") then
-                                    local baseFromSpell = string.gsub(linkedSpell, "^UAWC_PM_", "")
-                                    baseFromSpell = string.gsub(baseFromSpell, "^UAWC_", "")
-                                    RegisterDynamicInterruptForSpell(baseFromSpell, newIntName, slotLevel, interruptName)
-                                end
-
-                                if string.find(interruptName, "^Interrupt_UAWC_") then
-                                    local baseFromInt = string.gsub(interruptName, "^Interrupt_UAWC_PM_", "")
-                                    baseFromInt = string.gsub(baseFromInt, "^Interrupt_UAWC_", "")
-                                    RegisterDynamicInterruptForSpell(baseFromInt, newIntName, slotLevel, interruptName)
-                                end
-
-                                if string.find(interruptName, "^KJ_WC_") then
-                                    RegisterDynamicInterruptForSpell(StripWarCasterPrefix(interruptName), newIntName, slotLevel, interruptName)
+                                for _, ancestorSpell in ipairs(CollectSpellAncestors(linkedSpell)) do
+                                    RegisterDynamicInterruptForSpell(ancestorSpell, newIntName, slotLevel, interruptName)
                                 end
                             end
                         end
