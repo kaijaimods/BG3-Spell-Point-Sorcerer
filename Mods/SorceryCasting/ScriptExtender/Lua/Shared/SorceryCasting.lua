@@ -614,21 +614,29 @@ if Ext.IsServer() then
         local pName = passiveList[index]
         local expectedLastInt = GetLastInterruptInPassive(pName)
 
-        if Osi.HasPassive(uuid, pName) == 0 then
-            Osi.AddPassive(uuid, pName)
-        end
+        local removeAttempts = 0
+        local function WaitForRemovalThenAdd()
+            removeAttempts = removeAttempts + 1
+            if Osi.HasPassive(uuid, pName) == 0 or removeAttempts >= 60 then
+                Osi.AddPassive(uuid, pName)
 
-        local attempts = 0
-        local function WaitUntilApplied()
-            attempts = attempts + 1
-            if (Osi.HasPassive(uuid, pName) == 1 and CharacterHasInterrupt(uuid, expectedLastInt)) or attempts >= 120 then
-                ApplyPassivesSequentially(uuid, passiveList, index + 1)
-            else
+                local applyAttempts = 0
+                local function WaitUntilApplied()
+                    applyAttempts = applyAttempts + 1
+                    if (Osi.HasPassive(uuid, pName) == 1 and CharacterHasInterrupt(uuid, expectedLastInt)) or applyAttempts >= 120 then
+                        ApplyPassivesSequentially(uuid, passiveList, index + 1)
+                    else
+                        Ext.Timer.WaitFor(1, WaitUntilApplied)
+                    end
+                end
+
                 Ext.Timer.WaitFor(1, WaitUntilApplied)
+            else
+                Ext.Timer.WaitFor(1, WaitForRemovalThenAdd)
             end
         end
 
-        Ext.Timer.WaitFor(1, WaitUntilApplied)
+        WaitForRemovalThenAdd()
     end
 
     local function ApplyCharacterPassives(uuid)
@@ -668,6 +676,7 @@ if Ext.IsServer() then
                 local pStat = Ext.Stats.Get(pName)
                 if pStat ~= nil then
                     pStat.Boosts = ""
+					pStat:Sync()
                     payload[pName] = ""
                 end
             end
