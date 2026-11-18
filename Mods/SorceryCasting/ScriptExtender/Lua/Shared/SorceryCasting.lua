@@ -301,6 +301,16 @@ local function CollectSpellAncestors(spellName)
     return ancestors
 end
 
+local function SafeGetStatAttr(stat, attr)
+    if stat == nil then
+        return nil
+    end
+    local ok, val = pcall(function()
+        return stat[attr]
+    end)
+    return ok and val or nil
+end
+
 local function SerializeFunctorGroups(groups)
     if groups == nil then
         return ""
@@ -378,7 +388,10 @@ local function IsNonScalingUpcastSpell(spellName)
 end
 
 local function IsRedundantUpcastInterrupt(interruptName, intStat, spellList)
-    -- Check if any linked UseSpell target is a non-scaling upcast (works for any mod's wrapper stats)
+    if intStat == nil or intStat.ModifierList ~= "InterruptData" then
+        return false
+    end
+
     for _, linkedSpell in ipairs(spellList or {}) do
         if IsNonScalingUpcastSpell(linkedSpell) then
             return true
@@ -389,20 +402,20 @@ local function IsRedundantUpcastInterrupt(interruptName, intStat, spellList)
         return false
     end
 
-    local parentName = intStat.Using
+    local parentName = SafeGetStatAttr(intStat, "Using")
     if parentName == nil or parentName == "" then
         parentName = string.gsub(interruptName, "_%d+$", "")
     end
 
     local parentStat = Ext.Stats.Get(parentName)
-    if parentStat == nil then
+    if parentStat == nil or parentStat.ModifierList ~= "InterruptData" then
         return false
     end
 
-    local childProps = SerializeFunctorGroups(intStat.Properties)
-    local parentProps = SerializeFunctorGroups(parentStat.Properties)
-    local childSucc = SerializeFunctorGroups(intStat.Success)
-    local parentSucc = SerializeFunctorGroups(parentStat.Success)
+    local childProps = SerializeFunctorGroups(SafeGetStatAttr(intStat, "Properties"))
+    local parentProps = SerializeFunctorGroups(SafeGetStatAttr(parentStat, "Properties"))
+    local childSucc = SerializeFunctorGroups(SafeGetStatAttr(intStat, "Success"))
+    local parentSucc = SerializeFunctorGroups(SafeGetStatAttr(parentStat, "Success"))
 
     if childProps == "" and childSucc == "" then
         return false
