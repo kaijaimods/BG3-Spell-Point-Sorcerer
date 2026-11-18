@@ -143,6 +143,39 @@ local function SafeGetUseCosts(stat)
     return ok and costs or nil
 end
 
+local function ResolveInheritedDisplayName(statName)
+    local current = Ext.Stats.Get(statName)
+    local visited = {}
+    while current ~= nil do
+        if current.Name ~= nil then
+            if visited[current.Name] then
+                break
+            end
+            visited[current.Name] = true
+        end
+
+        local rawHandle = current.DisplayName or ""
+        if rawHandle ~= "" then
+            local cleanHandle = string.gsub(rawHandle, ";%d+$", "")
+            local translated = Ext.Loca.GetTranslatedString(cleanHandle)
+            if translated ~= nil and translated ~= "" then
+                return translated
+            end
+            if not string.match(cleanHandle, "^h[%x]+g[%x]+g[%x]+g[%x]+g[%x]+$") then
+                return cleanHandle
+            end
+        end
+
+        local parentName = current.Using
+        if parentName ~= nil and parentName ~= "" then
+            current = Ext.Stats.Get(parentName)
+        else
+            break
+        end
+    end
+    return statName
+end
+
 local function GetSpellSlotLevel(spellName)
     local sStat = Ext.Stats.Get(spellName)
     local costStr = SafeGetUseCosts(sStat)
@@ -731,7 +764,7 @@ if Ext.IsServer() then
         end
 
         local maxSlotLevel = GetMaxSorcererSpellLevel(entity, uuid)
-        local charReactionBoosts = {}
+        local candidateReactions = {}
         local seenInterrupts = {}
 
         for spellName, _ in pairs(learnedSpells) do
@@ -742,10 +775,25 @@ if Ext.IsServer() then
                     local hasBaseReaction = info.origInterrupt ~= nil and unlockedInterrupts[info.origInterrupt] == true
                     if not seenInterrupts[info.interrupt] and levelAllowed and hasBaseReaction then
                         seenInterrupts[info.interrupt] = true
-                        table.insert(charReactionBoosts, string.format("UnlockInterrupt(%s)", info.interrupt))
+                        local displayText = ResolveInheritedDisplayName(info.interrupt)
+                        local cleanBase = string.gsub(displayText, "%s*%([Ll]evel%s*%d+%)", "")
+                        local sortKey = string.format("%s_%02d_%s", string.lower(cleanBase), info.level or 0, info.interrupt)
+                        table.insert(candidateReactions, {
+                            interrupt = info.interrupt,
+                            sortKey = sortKey,
+                        })
                     end
                 end
             end
+        end
+
+        table.sort(candidateReactions, function(a, b)
+            return a.sortKey < b.sortKey
+        end)
+
+        local charReactionBoosts = {}
+        for _, entry in ipairs(candidateReactions) do
+            table.insert(charReactionBoosts, string.format("UnlockInterrupt(%s)", entry.interrupt))
         end
 
         local reactSlot = 1
