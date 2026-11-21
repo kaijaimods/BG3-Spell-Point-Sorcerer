@@ -531,14 +531,18 @@ if Ext.IsClient() then
         end
     end)
 
-    Ext.Events.GameStateChanged:Subscribe(function(e)
-        if e.ToState == "Running" then
-            EnsureDynamicReactionsPrepared()
-            Ext.Timer.WaitFor(500, function()
-                requestChannel:SendToServer("")
-            end)
-        end
-    end)
+    local ClientNeedsSync = true
+	Ext.Events.GameStateChanged:Subscribe(function(e)
+		if e.ToState == "LoadLevel" or e.ToState == "LoadSession" or e.ToState == "UnloadLevel" then
+			ClientNeedsSync = true
+		elseif e.ToState == "Running" and ClientNeedsSync then
+			ClientNeedsSync = false
+			EnsureDynamicReactionsPrepared()
+			Ext.Timer.WaitFor(500, function()
+				requestChannel:SendToServer("")
+			end)
+		end
+	end)
 end
 
 if Ext.IsServer() then
@@ -960,13 +964,17 @@ if Ext.IsServer() then
         RebuildAllPartySorcerers()
     end)
 
-    Ext.Events.GameStateChanged:Subscribe(function(e)
-        if e.ToState == "Running" then
-            Ext.Timer.WaitFor(600, function()
-                RebuildAllPartySorcerers()
-            end)
-        end
-    end)
+	local ServerNeedsSync = true
+	Ext.Events.GameStateChanged:Subscribe(function(e)
+		if e.ToState == "LoadLevel" or e.ToState == "LoadSession" or e.ToState == "UnloadLevel" then
+			ServerNeedsSync = true
+		elseif e.ToState == "Running" and ServerNeedsSync then
+			ServerNeedsSync = false
+			Ext.Timer.WaitFor(600, function()
+				RebuildAllPartySorcerers()
+			end)
+		end
+	end)
 
     Ext.Events.SessionLoaded:Subscribe(function()
         local function DelayedSingleRebuild(character)
