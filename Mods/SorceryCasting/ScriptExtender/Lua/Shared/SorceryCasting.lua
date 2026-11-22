@@ -956,25 +956,24 @@ if Ext.IsServer() then
         end)
     end
 
+    local PartyRebuildToken = 0
+    local function SchedulePartyRebuild(delayMs)
+        PartyRebuildToken = PartyRebuildToken + 1
+        local token = PartyRebuildToken
+        Ext.Timer.WaitFor(delayMs, function()
+            if PartyRebuildToken == token then
+                RebuildAllPartySorcerers()
+            end
+        end)
+    end
+
     function KJ_RebuildSorcerers()
         RebuildAllPartySorcerers()
     end
 
     requestChannel:SetHandler(function()
-        RebuildAllPartySorcerers()
+        SchedulePartyRebuild(100)
     end)
-
-	local ServerNeedsSync = true
-	Ext.Events.GameStateChanged:Subscribe(function(e)
-		if e.ToState == "LoadLevel" or e.ToState == "LoadSession" or e.ToState == "UnloadLevel" then
-			ServerNeedsSync = true
-		elseif e.ToState == "Running" and ServerNeedsSync then
-			ServerNeedsSync = false
-			Ext.Timer.WaitFor(600, function()
-				RebuildAllPartySorcerers()
-			end)
-		end
-	end)
 
     Ext.Events.SessionLoaded:Subscribe(function()
         local function DelayedSingleRebuild(character)
@@ -1050,9 +1049,7 @@ if Ext.IsServer() then
         end)
 
         Ext.Osiris.RegisterListener("UserConnected", 3, "after", function()
-            Ext.Timer.WaitFor(750, function()
-                RebuildAllPartySorcerers()
-            end)
+            SchedulePartyRebuild(750)
         end)
     end)
 end
